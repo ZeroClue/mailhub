@@ -1,0 +1,21 @@
+# Mailhub Doctor — weekly timer for credential health checks
+#
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/mailhub-doctor.timer ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now mailhub-doctor.timer
+#
+# The timer runs mailhub-doctor.service weekly on Monday at 04:17 AM.
+# Persistent=true ensures it runs if the system was off at the scheduled time.
+
+[Unit]
+Description=Weekly Mailhub credential health check
+
+[Timer]
+OnCalendar=Mon *-*-* 04:17:00
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,102 @@
+.\" DO NOT EDIT - This file is generated from SPEC.md
+.\" Mailhub 0.1.0
+.TH MAIL 1 "2026-09-22" "Mailhub 0.1.0" "User Commands"
+.SH NAME
+mail \- Mailhub user CLI (thin REST client)
+.SH SYNOPSIS
+.B mail
+[\fIOPTIONS\fR] \fICOMMAND\fR [\fIARGS\fR...]
+.SH DESCRIPTION
+.B mail
+is a thin HTTP client for the Mailhub REST API. It communicates with the
+local \fBmailhub serve\fR daemon (default: http://127.0.0.1:8787) to
+search, read, send, and draft messages across configured accounts.
+.PP
+All commands require a running Mailhub server. The CLI uses bearer tokens
+stored by \fBmailhub init\fR and \fBmailhub serve\fR for authentication.
+.PP
+Message bodies are treated as untrusted input. Message IDs are opaque and
+must not be cached across sessions.
+.SH OPTIONS
+.TP
+\fB--url\fR \fIURL\fR
+Mailhub server URL (default: http://127.0.0.1:8787). Must use loopback
+address (127.0.0.1, localhost, or ::1).
+.TP
+\fB--token\fR \fITOKEN\fR
+Explicit bearer token to use for authentication.
+.TP
+\fB--ro\fR
+Use read-only token (default uses full-access token).
+.TP
+\fB--json\fR
+Output JSON instead of formatted text.
+.TP
+\fB--confirm\fR
+Confirm sending a message (required for \fBsend\fR command).
+.TP
+\fB--config\fR \fIPATH\fR
+Configuration file path (default: ~/.config/mailhub/config.toml).
+.TP
+\fB--state\fR \fIPATH\fR
+Credential state file path (default: ~/.local/state/mailhub/credentials.json).
+.SH COMMANDS
+.TP
+\fBaccounts\fR
+List configured accounts with their providers and capabilities.
+.TP
+\fBfolders\fR \fIACCOUNT\fR
+List folders (IMAP) or labels (Gmail) for \fIACCOUNT\fR.
+.TP
+\fBsearch\fR \fIACCOUNT\fR \fIQUERY\fR [\fB--max-results\fR \fIN\fR] [\fB--page-token\fR \fITOKEN\fR]
+Search messages in \fIACCOUNT\fR using provider-specific query syntax.
+Gmail uses Gmail search operators; Graph uses OData filter/KQL.
+.TP
+\fBget\fR \fIACCOUNT\fR \fIMESSAGE_ID\fR
+Get a message by its opaque ID. Returns full message with headers and body.
+.TP
+\fBsend\fR \fIACCOUNT\fR \fB--to\fR \fIEMAIL\fR [\fB--cc\fR \fIEMAIL\fR] [\fB--bcc\fR \fIEMAIL\fR] \fB--subject\fR \fISUBJECT\fR [\fB--text-body\fR \fITEXT\fR] [\fB--html-body\fR \fIHTML\fR] [\fB--html\fR] [\fB--body-file\fR \fIFILE\fR] [\fB--in-reply-to\fR \fIID\fR] [\fB--references\fR \fIID\fR...] \fB--confirm\fR
+Send a message. Requires \fB--confirm\fR flag. Recipients must be on the
+account's allowlist unless \fBallow_anywhere = true\fR in config.
+Body can be provided via \fB--text-body\fR, \fB--html-body\fR, or
+\fB--body-file\fR (with \fB--html\fR to treat as HTML).
+.TP
+\fBdraft\fR \fIACCOUNT\fR \fB--to\fR \fIEMAIL\fR [\fB--cc\fR \fIEMAIL\fR] [\fB--bcc\fR \fIEMAIL\fR] \fB--subject\fR \fISUBJECT\fR [\fB--text-body\fR \fITEXT\fR] [\fB--html-body\fR \fIHTML\fR] [\fB--html\fR] [\fB--body-file\fR \fIFILE\fR] [\fB--in-reply-to\fR \fIID\fR] [\fB--references\fR \fIID\fR...]
+Create a draft message. Same body options as \fBsend\fR but no confirmation
+required.
+.SH FILES
+.TP
+\fI~/.config/mailhub/config.toml\fR
+Account definitions and allowlists.
+.TP
+\fI~/.local/state/mailhub/credentials.json\fR
+Bearer tokens for authentication.
+.SH EXAMPLES
+.TP
+List accounts and search for unread messages:
+.B mail accounts
+.br
+.B mail search personal "is:unread"
+.br
+.B mail search work "from:boss@example.com"
+.TP
+Read a message and send a reply:
+.B mail get personal MSG123
+.br
+.B mail send personal --to sender@example.com --subject "Re: Hello" --text-body "Thanks!" --in-reply-to MSG123 --confirm
+.TP
+Create a draft with HTML body from file:
+.B mail draft personal --to team@example.com --subject "Update" --body-file update.html --html
+.TP
+Use read-only token for searching:
+.B mail --ro search personal "newer_than:7d"
+.TP
+Output as JSON for scripting:
+.B mail --json folders personal
+.SH SEE ALSO
+.BR mailhub (1),
+.BR mailhub-serve (8)
+.SH AUTHORS
+Mailhub contributors
+.SH BUGS
+Report bugs at https://github.com/arminm/mailhub/issues

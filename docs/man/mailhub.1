@@ -1,0 +1,124 @@
+.\" DO NOT EDIT - This file is generated from SPEC.md
+.\" Mailhub 0.1.0
+.TH MAILHUB 1 "2026-09-22" "Mailhub 0.1.0" "User Commands"
+.SH NAME
+mailhub \- Local Mailhub administration
+.SH SYNOPSIS
+.B mailhub
+[\fIOPTIONS\fR] \fICOMMAND\fR [\fIARGS\fR...]
+.SH DESCRIPTION
+.B mailhub
+is the administration CLI for Mailhub, a local personal-operations hub for AI
+assistants. It manages configuration, OAuth credentials, account health, and
+exposes a loopback-only REST API and stdio MCP server.
+.PP
+All provider calls use official APIs (Gmail, Microsoft Graph) or standard
+protocols (IMAP/SMTP, CalDAV, CardDAV). Configuration and credentials are
+stored locally with restrictive permissions.
+.SH OPTIONS
+The following global options are available for all commands:
+.TP
+\fB--config\fR \fIPATH\fR
+Configuration file path (default: \fI~/.config/mailhub/config.toml\fR).
+.TP
+\fB--state\fR \fIPATH\fR
+Credential state file path (default: \fI~/.local/state/mailhub/credentials.json\fR).
+.SH COMMANDS
+.TP
+\fBinit\fR
+Create owner-only local configuration and state files with correct permissions
+(0600). Generates bearer tokens for REST API access.
+.TP
+\fBauth\fR \fIPROVIDER\fR \fIALIAS\fR [\fB--code\fR \fICODE\fR]
+Authorize an account via OAuth flow. \fIPROVIDER\fR is \fBgmail\fR or
+\fBgraph\fR. \fIALIAS\fR is the account alias from config. If \fB--code\fR
+is provided, exchange the authorization code or redirect URL directly.
+.TP
+\fBstatus\fR
+Show configured accounts and their capabilities without contacting providers.
+.TP
+\fBdoctor\fR
+Check account health, refresh tokens, and report status (ok, needs_reauth,
+invalid_credentials, etc.).
+.TP
+\fBreauth\fR \fIPROVIDER\fR \fIALIAS\fR
+Re-authorize an account, forcing a new consent screen. Use when scopes have
+changed or tokens are revoked.
+.TP
+\fBlogout\fR \fIALIAS\fR
+Remove stored tokens for an account. Configuration entry remains.
+.TP
+\fBserve\fR [\fB--host\fR \fIADDR\fR] [\fB--port\fR \fIPORT\fR]
+Start the REST API server. Binds to \fB127.0.0.1\fR only (default port 8787).
+.TP
+\fBmcp\fR [\fB--mode\fR \fIMODE\fR]
+Run the stdio MCP server. \fIMODE\fR is \fBro\fR (read-only, default) or
+\fBfull\fR (read-write). M1 supports read-only mode only.
+.TP
+\fBconfig\fR \fISUBCOMMAND\fR [\fIARGS\fR...]
+Manage Mailhub configuration.
+.SH CONFIG SUBCOMMANDS
+.TP
+\fBconfig list\fR
+List all configured accounts with their providers and capabilities.
+.TP
+\fBconfig add-account\fR [\fB--alias\fR \fIALIAS\fR] [\fB--provider\fR \fIPROVIDER\fR] [\fB--capabilities\fR \fICAP\fR...] [\fB--email\fR \fIEMAIL\fR]
+Interactively add a new account, or non-interactively with flags.
+.TP
+\fBconfig validate\fR
+Validate config syntax and provider credentials.
+.TP
+\fBconfig doctor\fR
+Validate config structure and check account health (same as top-level
+\fBdoctor\fR).
+.TP
+\fBconfig setup-google\fR
+Open browser to Google Cloud Console for OAuth client setup, then prompt for
+Client ID and Secret.
+.TP
+\fBconfig setup-microsoft\fR
+Open browser to Microsoft Entra ID for app registration, then prompt for
+Application (client) ID.
+.TP
+\fBconfig remove-account\fR \fIALIAS\fR
+Remove an account from configuration and its stored tokens.
+.SH FILES
+.TP
+\fI~/.config/mailhub/config.toml\fR
+Account definitions, provider credentials, and settings (mode 0600).
+.TP
+\fI~/.local/state/mailhub/credentials.json\fR
+Refresh tokens, OAuth state, and generated bearer tokens (mode 0600).
+.TP
+\fI~/.local/state/mailhub/audit.jsonl\fR
+Audit log for mutating actions (never records tokens or message bodies).
+.SH EXAMPLES
+.TP
+Initialize configuration and add a Gmail account:
+.B mailhub init
+.br
+.B mailhub config setup-google
+.br
+.B mailhub config add-account
+.br
+.B mailhub auth gmail personal
+.TP
+Start the REST server and use the mail CLI:
+.B mailhub serve
+.br
+.B mail accounts
+.br
+.B mail search personal "is:unread"
+.TP
+Check account health:
+.B mailhub doctor
+.TP
+Run read-only MCP server:
+.B mailhub mcp --mode ro
+.SH SEE ALSO
+.BR mail (1),
+.BR mailhub-serve (8)
+.SH AUTHORS
+Mailhub contributors
+.SH BUGS
+Report bugs at https://github.com/arminm/mailhub/issues

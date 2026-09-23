@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mailhub"
+version = "0.1.0"
+description = "A local personal-operations hub for AI assistants"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27",
+    "mcp==1.12.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.4.1",
+    "pytest-asyncio==0.24.0",
+]
+
+[project.scripts]
+mailhub = "mailhub.cli:main"
+mail = "mailhub.mail_cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mailhub"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

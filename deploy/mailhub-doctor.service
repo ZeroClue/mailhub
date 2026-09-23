@@ -1,0 +1,37 @@
+# Mailhub Doctor — systemd oneshot service for credential health checks
+#
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/mailhub-doctor.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#
+# Run manually:
+#   systemctl --user start mailhub-doctor.service
+#
+# This service runs 'mailhub doctor' to verify configured accounts
+# and refresh tokens as needed. It runs as a oneshot (no persistent daemon).
+
+[Unit]
+Description=Mailhub credential health check
+Documentation=https://github.com/mailhub/mailhub
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/mailhub doctor
+Environment=MAILHUB_CONFIG=%h/.config/mailhub/config.toml
+Environment=MAILHUB_STATE=%h/.local/state/mailhub/credentials.json
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM

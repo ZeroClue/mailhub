@@ -1,0 +1,42 @@
+# Mailhub REST API — systemd user service
+#
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/mailhub.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now mailhub.service
+#
+# The service runs the mailhub REST API bound to 127.0.0.1:8787.
+# It requires a valid configuration at ~/.config/mailhub/config.toml
+# and credentials at ~/.local/state/mailhub/credentials.json.
+
+[Unit]
+Description=Mailhub REST API
+Documentation=https://github.com/mailhub/mailhub
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/mailhub serve
+Restart=on-failure
+RestartSec=3
+Environment=MAILHUB_CONFIG=%h/.config/mailhub/config.toml
+Environment=MAILHUB_STATE=%h/.local/state/mailhub/credentials.json
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=default.target
