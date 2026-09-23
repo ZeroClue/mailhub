@@ -1,0 +1,82 @@
+name: Docker Build Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.dockerignore'
+      - 'mailhub/**'
+      - 'pyproject.toml'
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.dockerignore'
+      - 'mailhub/**'
+      - 'pyproject.toml'
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: zc-mailhub:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Docker tests
+        run: |
+          chmod +x scripts/test-docker.sh
+          ./scripts/test-docker.sh
+
+  docker-publish:
+    needs: docker-test
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/ZeroClue/zc-mailhub
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

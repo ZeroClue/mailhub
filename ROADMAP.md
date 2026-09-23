@@ -42,7 +42,7 @@ Mailhub M1-M5 complete (187 tests). This roadmap covers production hardening & U
 
 | ID | Task | Status | Owner | Review | Notes |
 |----|------|--------|-------|--------|-------|
-| P3-1 | Docker image | ☐ | | ☐ | For server deployments |
+| P3-1 | Docker image | ✅ | | ☐ | For server deployments |
 | P3-2 | Homebrew tap formula | ☐ | | ☐ | Optional |
 | P3-3 | Arch/AUR package | ☐ | | ☐ | Optional |
 | P3-4 | CalDAV/CardDAV write support | ☐ | | ☐ | Currently read-only stubs |

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hmac
 import ipaddress
 import secrets
+import signal
 import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -177,10 +178,14 @@ async def lifespan(app: FastAPI):
     except ConfigError:
         _core = None
     yield
+    # Graceful shutdown
     if _core:
         for adapter in _core._adapters.values():
             if hasattr(adapter, 'close'):
                 adapter.close()
+        # Give adapters time to flush/cleanup
+        import asyncio
+        await asyncio.sleep(0.5)
 
 
 def create_app(config_file: Path | None = None) -> FastAPI:
@@ -194,9 +199,33 @@ def create_app(config_file: Path | None = None) -> FastAPI:
         lifespan=lifespan,
     )
 
-    @app.get("/health", response_model=HealthResponse)
+    @app.get("/health")
     async def health():
-        return HealthResponse()
+        """Health check endpoint - returns basic status."""
+        return {"status": "ok", "version": "0.1.0"}
+
+    @app.get("/health/detailed")
+    async def health_detailed():
+        """Detailed health check - includes adapter status."""
+        core = get_core()
+        if core is None:
+            return {"status": "degraded", "version": "0.1.0", "error": "Core not initialized"}
+        
+        adapter_status = {}
+        for name, adapter in core._adapters.items():
+            try:
+                # Quick health check on each adapter
+                profile = adapter.profile("default") if hasattr(adapter, 'profile') else {}
+                adapter_status[name] = {"status": "ok", "profile": profile}
+            except Exception as e:
+                adapter_status[name] = {"status": "error", "error": str(e)}
+        
+        all_ok = all(s.get("status") == "ok" for s in adapter_status.values())
+        return {
+            "status": "ok" if all_ok else "degraded",
+            "version": "0.1.0",
+            "adapters": adapter_status
+        }
 
     @app.get("/accounts", response_model=list[AccountStatus])
     async def list_accounts(scope: str = Depends(verify_token)):
@@ -349,6 +378,8 @@ def create_app(config_file: Path | None = None) -> FastAPI:
 def run_server(config_file: Path | None = None, host: str = "127.0.0.1", port: int = 8787):
     """Run the FastAPI server with uvicorn."""
     import uvicorn
+    import signal
+    import asyncio
     
     # Validate host is loopback
     try:
@@ -357,7 +388,35 @@ def run_server(config_file: Path | None = None, host: str = "127.0.0.1", port: i
         raise SystemExit(f"mailhub: {e}")
     
     app = create_app(config_file)
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    
+    # Graceful shutdown handler
+    shutdown_event = asyncio.Event()
+    
+    def signal_handler(signum, frame):
+        shutdown_event.set()
+    
+    # Install signal handlers
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, signal_handler)
+    
+    # Custom uvicorn server with graceful shutdown
+    config = uvicorn.Config(
+        app,
+        host=host,
+        port=port,
+        log_level="info",
+        lifespan="on"
+    )
+    server = uvicorn.Server(config)
+    
+    # Run with graceful shutdown
+    async def run_with_shutdown():
+        serve_task = asyncio.create_task(server.serve())
+        await shutdown_event.wait()
+        server.should_exit = True
+        await serve_task
+    
+    asyncio.run(run_with_shutdown())
 
 
 if __name__ == "__main__":

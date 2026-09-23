@@ -35,3 +35,11 @@ Thumbs.db
 
 # Mailhub temp files
 mailhub_oauth_*.json
+
+# Docker
+docker-compose.yml
+Dockerfile
+.docker/
+
+# Docker
+.dockerignore

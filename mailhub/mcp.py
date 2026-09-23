@@ -6,6 +6,7 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP as _FastMCP
 
+from . import __version__
 from .config import ConfigError, load_config
 from .core import Core, CoreError, SendDenied
 
@@ -143,7 +144,17 @@ def create_server(*, mode="ro", config_file=None):
     _core_holder["core"] = core
 
     from mcp.server.fastmcp import FastMCP
-    server = _FastMCP("mailhub")
+    # Create server with name, version, and instructions for proper initialize response
+    server = _FastMCP(
+        name="mailhub",
+        instructions=(
+            "Mailhub - Local personal-operations hub for mail, calendar, contacts, and tasks. "
+            "Supports Gmail, Microsoft Graph, IMAP/SMTP, CalDAV, and CardDAV. "
+            "Use --mode ro for read-only access, --mode full for mutations."
+        ),
+    )
+    # Set version on underlying MCP server for initialize response
+    server._mcp_server.version = __version__
 
     @server.tool(name="mailhub_status", description="List configured Mailhub accounts and capabilities.")
     def mailhub_status_tool():
