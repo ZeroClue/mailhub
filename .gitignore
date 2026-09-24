@@ -37,6 +37,4 @@ Thumbs.db
 mailhub_oauth_*.json
 
 # Docker
-docker-compose.yml
-Dockerfile
 .docker/

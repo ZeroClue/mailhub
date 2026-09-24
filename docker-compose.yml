@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  mailhub:
+    build: .
+    container_name: mailhub
+    ports:
+      - "8787:8787"
+    environment:
+      - MAILHUB_CONFIG=/home/mailhub/.config/mailhub/config.toml
+    volumes:
+      - mailhub-config:/home/mailhub/.config/mailhub
+      - mailhub-state:/home/mailhub/.local/state/mailhub
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8787/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mailhub-mcp:
+    build: .
+    container_name: mailhub-mcp
+    entrypoint: ["mailhub", "mcp", "--mode", "full"]
+    volumes:
+      - mailhub-config:/home/mailhub/.config/mailhub
+      - mailhub-state:/home/mailhub/.local/state/mailhub
+    restart: unless-stopped
+
+volumes:
+  mailhub-config:
+  mailhub-state:
