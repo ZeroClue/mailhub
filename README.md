@@ -45,6 +45,57 @@ mailhub mcp --mode ro
 mailhub mcp --mode full
 ```
 
+
+## Installation Options
+
+### Permanent Install (Recommended for Daily Use)
+
+```bash
+# Install via uv (fast, isolated)
+uv tool install zc-mailhub
+
+# Or via pip
+pip install zc-mailhub
+
+# Or via pipx
+pipx install zc-mailhub
+```
+
+### Ephemeral / One-off Use (uvx)
+
+```bash
+# Run without installing (downloads + caches automatically)
+uvx --from zc-mailhub mailhub init
+uvx --from zc-mailhub mailhub mcp --mode full
+uvx --from zc-mailhub mailhub doctor
+
+# Use specific version
+uvx --from zc-mailhub@0.1.2 mailhub mcp --mode full
+
+# Force update to latest
+uvx --from zc-mailhub@latest mailhub mcp --mode full
+```
+
+### Docker
+
+```bash
+# Pull and run
+docker pull ghcr.io/zeroclue/zc-mailhub:v0.1.2
+docker run -p 8787:8787 ghcr.io/zeroclue/zc-mailhub:v0.1.2 serve
+
+# Or use docker-compose (see docker-compose.yml)
+docker compose up -d
+```
+
+### Development Install
+
+```bash
+git clone https://github.com/ZeroClue/mailhub
+cd mailhub
+uv sync --extra dev
+uv run mailhub init
+```
+
 ## Using the `mail` CLI
 
 The `mail` command is a thin HTTP client to the REST API (requires `mailhub serve` running):
@@ -373,6 +424,57 @@ Mailhub's MCP server runs over stdio and works with all major AI clients. Config
           "MAILHUB_CONFIG": "/home/youruser/.config/mailhub/config.toml"
         }
       }
+    }
+  }
+}
+```
+
+
+### Using uvx (No Install Required)
+
+```json
+{
+  "mcpServers": {
+    "mailhub": {
+      "command": "uvx",
+      "args": ["--from", "zc-mailhub", "mailhub", "mcp", "--mode", "full"],
+      "env": {
+        "MAILHUB_CONFIG": "/home/youruser/.config/mailhub/config.toml"
+      }
+    }
+  }
+}
+```
+
+### Using pipx (Permanent Install)
+
+```json
+{
+  "mcpServers": {
+    "mailhub": {
+      "command": "pipx",
+      "args": ["run", "--spec", "zc-mailhub", "mailhub", "mcp", "--mode", "full"],
+      "env": {
+        "MAILHUB_CONFIG": "/home/youruser/.config/mailhub/config.toml"
+      }
+    }
+  }
+}
+```
+
+### Using Docker
+
+```json
+{
+  "mcpServers": {
+    "mailhub": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", 
+        "-v", "mailhub-config:/home/mailhub/.config/mailhub",
+        "-v", "mailhub-state:/home/mailhub/.local/state/mailhub",
+        "ghcr.io/zeroclue/zc-mailhub:v0.1.2",
+        "mcp", "--mode", "full"],
+      "env": {}
     }
   }
 }
