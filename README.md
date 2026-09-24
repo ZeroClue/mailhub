@@ -512,6 +512,102 @@ Mailhub's MCP server runs over stdio and works with all major AI clients. Config
 }
 ```
 
+
+## Setting Up Mailhub (MCP / Docker)
+
+The MCP server and Docker container need configuration **before** they can access your mail/calendar. Run setup commands on the host (not inside MCP), then start the MCP/Docker.
+
+### 1. Local Install Setup (then use MCP)
+
+```bash
+# Install
+uv tool install zc-mailhub
+
+# Initialize config & state
+mailhub init
+
+# Configure OAuth clients (one-time)
+mailhub config setup-google    # Opens Google Cloud Console
+mailhub config setup-microsoft # Opens Microsoft Entra ID
+
+# Add accounts
+mailhub config add-account --alias me --provider gmail --capabilities mail --email me@gmail.com
+mailhub config add-account --alias work --provider graph --capabilities mail --email me@outlook.com
+
+# Authorize accounts (opens browser, paste redirect URL)
+mailhub auth gmail me --code '<pasted-redirect-url>'
+mailhub auth graph work --code '<pasted-redirect-url>'
+
+# Verify health
+mailhub doctor
+
+# Now configure your AI client's MCP settings (see above)
+# Then restart your AI client
+```
+
+### 2. Docker Setup
+
+```bash
+# Start container (creates volumes)
+docker compose up -d
+
+# Run setup INSIDE the container
+docker compose exec mailhub mailhub init
+docker compose exec mailhub mailhub config setup-google
+docker compose exec mailhub mailhub config setup-microsoft
+docker compose exec mailhub mailhub config add-account --alias me --provider gmail --capabilities mail --email me@gmail.com
+docker compose exec mailhub mailhub auth gmail me --code '<pasted-redirect-url>'
+
+# Verify
+docker compose exec mailhub mailhub doctor
+
+# Configure MCP client to use Docker (see "Using Docker" MCP config above)
+```
+
+### 3. uvx Setup (No Install)
+
+```bash
+# Run setup via uvx
+uvx --from zc-mailhub mailhub init
+uvx --from zc-mailhub mailhub config setup-google
+uvx --from zc-mailhub mailhub config setup-microsoft
+uvx --from zc-mailhub mailhub config add-account --alias me --provider gmail --capabilities mail --email me@gmail.com
+uvx --from zc-mailhub mailhub auth gmail me --code '<pasted-redirect-url>'
+uvx --from zc-mailhub mailhub doctor
+
+# Configure MCP client to use uvx (see "Using uvx" MCP config above)
+```
+
+### Key Points
+
+| Method | Config Location | Notes |
+|--------|-----------------|-------|
+| Local install | `~/.config/mailhub/` | Standard XDG paths |
+| Docker | Docker volumes (`mailhub-config`, `mailhub-state`) | Persists across container restarts |
+| uvx | `~/.config/mailhub/` | Same as local install (uses real XDG) |
+
+**The OAuth flow opens a browser on the host** - you'll copy the redirect URL from the browser and paste it back to the terminal running the auth command.
+
+### Remote/VPS Setup
+
+```bash
+# On remote server (with Docker)
+ssh user@vps "docker compose up -d"
+ssh user@vps "docker compose exec mailhub mailhub init"
+ssh user@vps "docker compose exec mailhub mailhub config setup-google"
+# ... etc
+
+# Configure local AI client to use SSH tunnel:
+{
+  "mcpServers": {
+    "mailhub": {
+      "command": "ssh",
+      "args": ["user@vps", "docker", "run", "-i", "--rm", "ghcr.io/zeroclue/zc-mailhub:v0.1.2", "mcp", "--mode", "full"]
+    }
+  }
+}
+```
+
 ### Using SSH (Remote VPS)
 
 ```json
