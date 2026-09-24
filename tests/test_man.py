@@ -59,8 +59,8 @@ def test_mailhub_man_th_macro():
     """Verify mailhub.1 has correct .TH macro."""
     mailhub_content = (MAN_DIR / "mailhub.1").read_text()
     assert '.TH MAILHUB 1' in mailhub_content, "mailhub.1 missing correct .TH macro"
-    assert '"2026-09-22"' in mailhub_content, "mailhub.1 missing date"
-    assert '"Mailhub 0.1.0"' in mailhub_content, "mailhub.1 missing version"
+    assert '"2026-09-24"' in mailhub_content, "mailhub.1 missing date"
+    assert '"Mailhub 0.1.2"' in mailhub_content, "mailhub.1 missing version"
     assert '"User Commands"' in mailhub_content, "mailhub.1 missing section"
 
 
@@ -68,8 +68,8 @@ def test_mail_man_th_macro():
     """Verify mail.1 has correct .TH macro."""
     mail_content = (MAN_DIR / "mail.1").read_text()
     assert '.TH MAIL 1' in mail_content, "mail.1 missing correct .TH macro"
-    assert '"2026-09-22"' in mail_content, "mail.1 missing date"
-    assert '"Mailhub 0.1.0"' in mail_content, "mail.1 missing version"
+    assert '"2026-09-24"' in mail_content, "mail.1 missing date"
+    assert '"Mailhub 0.1.2"' in mail_content, "mail.1 missing version"
     assert '"User Commands"' in mail_content, "mail.1 missing section"
 
 
