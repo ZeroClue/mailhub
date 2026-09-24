@@ -42,10 +42,11 @@ Mailhub M1-M5 complete (187 tests). This roadmap covers production hardening & U
 
 | ID | Task | Status | Owner | Review | Notes |
 |----|------|--------|-------|--------|-------|
-| P3-1 | Docker image | ✅ | | ☐ | For server deployments |
+| P3-1 | Docker image | ✅ | | ☐ | Multi-stage, non-root, GHCR, docker-compose |
 | P3-2 | Homebrew tap formula | ☐ | | ☐ | Optional |
 | P3-3 | Arch/AUR package | ☐ | | ☐ | Optional |
 | P3-4 | CalDAV/CardDAV write support | ☐ | | ☐ | Currently read-only stubs |
+| P3-5 | SSE/Streamable HTTP transport for MCP | ☐ | | ☐ | For web-based AI clients |
 
 ---
 
@@ -71,7 +72,7 @@ Mailhub M1-M5 complete (187 tests). This roadmap covers production hardening & U
 | M4 - Contacts/Tasks | 166 | people.py, people_graph.py, carddav.py, tasks.py, tasks_graph.py, tasks_caldav.py |
 | M5 - Operations | 187 | deploy/, backup.py, docs/operations.md |
 
-**Total: 187 tests passing**
+**Total: 187 tests passing (267 with polish)**
 
 ---
 
@@ -101,5 +102,27 @@ Mailhub M1-M5 complete (187 tests). This roadmap covers production hardening & U
 
 1. **Spawn → Wait → Review → Gate → Next Phase**
 2. **Never skip gates** - independent reviewer must approve
-4. **Document all findings** in security_review_*.md
-5. **Orchestrator does not implement** - only orchestrates, reviews gates, merges
+3. **Document all findings** in security_review_*.md
+4. **Orchestrator does not implement** - only orchestrates, reviews gates, merges
+
+---
+
+## Current Release: v0.1.2
+
+**Status**: ✅ Released
+
+| Artifact | Version | Location |
+|----------|---------|----------|
+| PyPI package | 0.1.2 | `pip install zc-mailhub` |
+| Docker image | v0.1.2 | `ghcr.io/zeroclue/zc-mailhub:v0.1.2` |
+| Git tag | v0.1.2 | https://github.com/ZeroClue/mailhub/releases/tag/v0.1.2 |
+
+**Completed in v0.1.2:**
+- Health endpoints (`/health`, `/health/detailed`)
+- Graceful shutdown (SIGTERM/SIGINT)
+- Docker support (multi-stage, docker-compose, GHCR)
+- MCP spec compliance (server info + tools capability)
+- Docker non-loopback support (`MAILHUB_ALLOW_NON_LOOPBACK`)
+- MCP configuration examples for all major AI clients
+- Updated man pages (v0.1.2)
+- docs/operations.md with Docker deployment guide

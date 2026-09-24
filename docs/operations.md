@@ -358,3 +358,258 @@ The `reauth` command generates an authorization URL with `prompt=consent` (Googl
 - Never log or print secrets during backup/restore operations. The backup module uses `warnings.warn()` for caller awareness, not logging.
 - Restore operations use `CredentialStore` for atomic writes, preventing partial/corrupted state.
 - The REST API binds only to `127.0.0.1` — no network exposure.
+
+---
+
+## Docker Deployment
+
+Mailhub provides official Docker images via GitHub Container Registry for containerized deployments.
+
+### Quick Start
+
+```bash
+# Pull the image
+docker pull ghcr.io/zeroclue/zc-mailhub:v0.1.2
+
+# Run with docker-compose (recommended)
+docker compose up -d
+
+# Or run directly
+docker run -d \
+  -p 8787:8787 \
+  -v mailhub-config:/home/mailhub/.config/mailhub \
+  -v mailhub-state:/home/mailhub/.local/state/mailhub \
+  -e MAILHUB_ALLOW_NON_LOOPBACK=1 \
+  ghcr.io/zeroclue/zc-mailhub:v0.1.2 \
+  serve --host 0.0.0.0
+```
+
+### docker-compose.yml
+
+The provided `docker-compose.yml` runs two services:
+
+| Service | Description | Port | Command |
+|---------|-------------|------|---------|
+| `mailhub` | REST API server | 8787 | `mailhub serve --host 0.0.0.0` |
+| `mailhub-mcp` | MCP server (full mode) | stdio | `mailhub mcp --mode full` |
+
+```yaml
+version: '3.8'
+
+services:
+  mailhub:
+    image: ghcr.io/zeroclue/zc-mailhub:v0.1.2
+    container_name: mailhub
+    command: ["mailhub", "serve", "--host", "0.0.0.0"]
+    ports:
+      - "8787:8787"
+    environment:
+      - MAILHUB_CONFIG=/home/mailhub/.config/mailhub/config.toml
+      - MAILHUB_ALLOW_NON_LOOPBACK=1
+    volumes:
+      - mailhub-config:/home/mailhub/.config/mailhub
+      - mailhub-state:/home/mailhub/.local/state/mailhub
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8787/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mailhub-mcp:
+    image: ghcr.io/zeroclue/zc-mailhub:v0.1.2
+    container_name: mailhub-mcp
+    entrypoint: ["mailhub", "mcp", "--mode", "full"]
+    volumes:
+      - mailhub-config:/home/mailhub/.config/mailhub
+      - mailhub-state:/home/mailhub/.local/state/mailhub
+    restart: unless-stopped
+
+volumes:
+  mailhub-config:
+  mailhub-state:
+```
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MAILHUB_CONFIG` | No | `/home/mailhub/.config/mailhub/config.toml` | Config file path |
+| `MAILHUB_ALLOW_NON_LOOPBACK` | For Docker | `0` | Set to `1` to allow binding to `0.0.0.0` |
+
+**Important**: In Docker, the server must bind to `0.0.0.0` to accept connections from outside the container. Set `MAILHUB_ALLOW_NON_LOOPBACK=1` and use `--host 0.0.0.0`.
+
+### Configuration in Docker
+
+Configuration and state are persisted via Docker volumes:
+
+```yaml
+volumes:
+  mailhub-config:
+  mailhub-state:
+```
+
+These correspond to:
+- `mailhub-config` → `~/.config/mailhub/` (config.toml)
+- `mailhub-state` → `~/.local/state/mailhub/` (credentials.json, audit.jsonl)
+
+### Initial Setup in Docker
+
+```bash
+# 1. Start empty volumes
+docker compose up -d
+
+# 2. Run init inside the container
+docker compose exec mailhub mailhub init
+
+# 3. Configure providers (interactive or flags)
+docker compose exec mailhub mailhub config setup-google
+docker compose exec mailhub mailhub config setup-microsoft
+
+# 4. Add accounts
+docker compose exec mailhub mailhub config add-account --alias me --provider gmail --capabilities mail --email me@gmail.com
+
+# 5. Authorize accounts (paste redirect URL)
+docker compose exec mailhub mailhub auth gmail me --code '<pasted-redirect-url>'
+
+# 6. Verify health
+docker compose exec mailhub mailhub doctor
+
+# 7. View logs
+docker compose logs -f mailhub
+```
+
+### MCP Server in Docker
+
+To run the MCP server over stdio for AI clients:
+
+```bash
+# One-off run
+docker compose run --rm mailhub-mcp
+
+# Or with docker run
+docker run -it --rm \
+  -v mailhub-config:/home/mailhub/.config/mailhub \
+  -v mailhub-state:/home/mailhub/.local/state/mailhub \
+  ghcr.io/zeroclue/zc-mailhub:v0.1.2 \
+  mcp --mode full
+```
+
+### AI Client Configuration (Docker)
+
+For MCP clients using Docker:
+
+```json
+{
+  "mcpServers": {
+    "mailhub": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", 
+        "-v", "mailhub-config:/home/mailhub/.config/mailhub",
+        "-v", "mailhub-state:/home/mailhub/.local/state/mailhub",
+        "ghcr.io/zeroclue/zc-mailhub:v0.1.2",
+        "mcp", "--mode", "full"]
+    }
+  }
+}
+```
+
+### Health Checks
+
+Docker healthcheck uses the built-in `/health` endpoint:
+
+```yaml
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:8787/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+```
+
+Detailed health via `/health/detailed`:
+```bash
+curl http://localhost:8787/health/detailed
+```
+
+### Security Hardening
+
+The Docker image follows security best practices:
+
+- **Multi-stage build** — builder stage for dependencies, minimal runtime image
+- **Non-root user** — runs as `mailhub` user (UID/GID 999)
+- **No secrets in image** — configuration and credentials mounted as volumes
+- **Read-only root filesystem** — add `read_only: true` to docker-compose
+- **Dropped capabilities** — `cap_drop: ["ALL"]`, `no-new-privileges: true`
+
+To enable read-only root filesystem:
+```yaml
+services:
+  mailhub:
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+```
+
+### Logs in Docker
+
+```bash
+# View all logs
+docker compose logs -f
+
+# View specific service
+docker compose logs -f mailhub
+docker compose logs -f mailhub-mcp
+
+# Timestamps
+docker compose logs -t mailhub
+```
+
+### Backup in Docker
+
+Volumes are backed up using Docker volume commands:
+
+```bash
+# Backup volumes
+docker run --rm \
+  -v mailhub-config:/source \
+  -v $(pwd)/backups:/backup \
+  alpine tar czf /backup/mailhub-config-$(date +%Y%m%d).tar.gz -C /source .
+
+docker run --rm \
+  -v mailhub-state:/source \
+  -v $(pwd)/backups:/backup \
+  alpine tar czf /backup/mailhub-state-$(date +%Y%m%d).tar.gz -C /source .
+
+# Restore volumes
+docker run --rm \
+  -v mailhub-config:/target \
+  -v $(pwd)/backups:/backup \
+  alpine tar xzf /backup/mailhub-config-20260924.tar.gz -C /target
+```
+
+### Updating
+
+```bash
+# Pull latest image
+docker compose pull
+
+# Recreate containers
+docker compose up -d
+
+# Or specific version
+docker pull ghcr.io/zeroclue/zc-mailhub:v0.1.3
+docker compose up -d
+```
+
+### Troubleshooting Docker
+
+| Issue | Solution |
+|-------|----------|
+| Health check fails | Check `docker compose logs mailhub` |
+| Port 8787 in use | Change host port in `docker-compose.yml` |
+| Permission denied on volumes | Ensure volumes owned by UID 999 |
+| Config not found | Verify `MAILHUB_CONFIG` path matches volume mount |
+| Tokens not persisting | Check `mailhub-state` volume is mounted |
+| MCP not working | Use `-i` flag for interactive stdio |
+

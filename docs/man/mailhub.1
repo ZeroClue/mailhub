@@ -1,6 +1,6 @@
 .\" DO NOT EDIT - This file is generated from SPEC.md
-.\" Mailhub 0.1.0
-.TH MAILHUB 1 "2026-09-22" "Mailhub 0.1.0" "User Commands"
+.\" Mailhub 0.1.2
+.TH MAILHUB 1 "2026-09-24" "Mailhub 0.1.2" "User Commands"
 .SH NAME
 mailhub \- Local Mailhub administration
 .SH SYNOPSIS
@@ -50,10 +50,12 @@ Remove stored tokens for an account. Configuration entry remains.
 .TP
 \fBserve\fR [\fB--host\fR \fIADDR\fR] [\fB--port\fR \fIPORT\fR]
 Start the REST API server. Binds to \fB127.0.0.1\fR only (default port 8787).
+Use \fBMAILHUB_ALLOW_NON_LOOPBACK=1\fR env var and \fB--host 0.0.0.0\fR for
+Docker deployments.
 .TP
 \fBmcp\fR [\fB--mode\fR \fIMODE\fR]
 Run the stdio MCP server. \fIMODE\fR is \fBro\fR (read-only, default) or
-\fBfull\fR (read-write). M1 supports read-only mode only.
+\fBfull\fR (read-write).
 .TP
 \fBconfig\fR \fISUBCOMMAND\fR [\fIARGS\fR...]
 Manage Mailhub configuration.
@@ -115,10 +117,58 @@ Check account health:
 .TP
 Run read-only MCP server:
 .B mailhub mcp --mode ro
+.TP
+Run full MCP server (Docker):
+.B MAILHUB_ALLOW_NON_LOOPBACK=1 mailhub serve --host 0.0.0.0
+.SH MCP CONFIGURATION
+Mailhub's MCP server works with all major AI clients via stdio.
+Configure in your client's MCP settings:
+.TP
+Claude Desktop (\fI~/Library/Application Support/Claude/claude_desktop_config.json\fR):
+.IP
+.nf
+{
+  "mcpServers": {
+    "mailhub": {
+      "command": "mailhub",
+      "args": ["mcp", "--mode", "full"],
+      "env": { "MAILHUB_CONFIG": "/home/user/.config/mailhub/config.toml" }
+    }
+  }
+}
+.fi
+.TP
+Cursor (\fI.cursor/mcp.json\fR):
+.IP
+.nf
+{
+  "mcpServers": {
+    "mailhub": {
+      "command": "mailhub",
+      "args": ["mcp", "--mode", "full"],
+      "env": { "MAILHUB_CONFIG": "/home/user/.config/mailhub/config.toml" }
+    }
+  }
+}
+.fi
+.TP
+Docker MCP:
+.IP
+.nf
+{
+  "mcpServers": {
+    "mailhub": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "ghcr.io/zeroclue/zc-mailhub:v0.1.2", "mcp", "--mode", "full"],
+      "env": {}
+    }
+  }
+}
+.fi
 .SH SEE ALSO
 .BR mail (1),
 .BR mailhub-serve (8)
 .SH AUTHORS
 Mailhub contributors
 .SH BUGS
-Report bugs at https://github.com/arminm/mailhub/issues
+Report bugs at https://github.com/ZeroClue/mailhub/issues
