@@ -49,17 +49,17 @@ main() {
         fi
     done
     
-    # 4. Test basic health
+    # 4. Test basic health - use jq or grep with flexible pattern
     log_info "Testing /health endpoint..."
     response=$(curl -s http://localhost:8787/health)
-    if echo "$response" | grep -q '"status":"ok"'; then
+    if echo "$response" | grep -q '"status"[[:space:]]*:[[:space:]]*"ok"'; then
         log_info "Basic health check passed"
     else
         log_error "Basic health check failed: $response"
         exit 1
     fi
     
-    # 3. Test detailed health
+    # 5. Test detailed health
     log_info "Testing /health/detailed endpoint..."
     response=$(curl -s http://localhost:8787/health/detailed)
     if echo "$response" | grep -q '"status"'; then
@@ -69,7 +69,7 @@ main() {
         exit 1
     fi
     
-    # 4. Test MCP server
+    # 6. Test MCP server
     log_info "Testing MCP server..."
     output=$(docker compose run --rm mailhub-mcp --help 2>&1 || true)
     if echo "$output" | grep -q "Mailhub MCP"; then
@@ -78,7 +78,7 @@ main() {
         log_warn "MCP server output unexpected: $output"
     fi
     
-    # 5. Test graceful shutdown
+    # 7. Test graceful shutdown
     log_info "Testing graceful shutdown..."
     docker compose stop
     if [ $? -eq 0 ]; then
@@ -87,7 +87,7 @@ main() {
         log_warn "Graceful shutdown had issues"
     fi
     
-    # 6. Test rebuild
+    # 8. Test rebuild
     log_info "Testing rebuild..."
     docker compose up -d --build
     sleep 5

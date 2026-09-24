@@ -1,3 +1,7 @@
+# Git
+.git
+.gitignore
+
 # Python
 __pycache__/
 *.py[cod]
@@ -36,7 +40,18 @@ Thumbs.db
 # Mailhub temp files
 mailhub_oauth_*.json
 
-# Docker
-docker-compose.yml
-Dockerfile
-.docker/
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets (never commit)
+*.env
+*.env.local
+*.key
+*.pem
+*.crt
+
+# CI/CD
+.github/
