@@ -31,6 +31,9 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin/mailhub /usr/local/bin/mailhub
 COPY --from=builder /usr/local/bin/mail /usr/local/bin/mail
 
+# Copy source code for editable install
+COPY --from=builder /app/mailhub /usr/local/lib/python3.11/site-packages/mailhub
+
 # Create config and state directories
 RUN mkdir -p /home/mailhub/.config/mailhub /home/mailhub/.local/state/mailhub \
     && chown -R mailhub:mailhub /home/mailhub
