@@ -15,8 +15,8 @@ RUN uv pip install --system --no-cache -r pyproject.toml --extra dev
 # Copy source code
 COPY mailhub/ ./mailhub/
 
-# Install the package to system Python
-RUN uv pip install --system --no-cache -e .
+# Install the package to system Python (non-editable)
+RUN uv pip install --system --no-cache .
 
 # Final stage
 FROM python:3.11-slim
