@@ -9,14 +9,14 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy dependency files and README (needed for package metadata)
 COPY pyproject.toml uv.lock* README.md ./
 
-# Install dependencies globally
-RUN uv pip install --system --no-cache -r pyproject.toml --extra dev
+# Install dependencies using uv sync
+RUN uv sync --extra dev
 
 # Copy source code
 COPY mailhub/ ./mailhub/
 
-# Install the package globally (non-editable)
-RUN uv pip install --system --no-cache .
+# Re-sync to include the package
+RUN uv sync --extra dev
 
 # Final stage
 FROM python:3.11-slim
@@ -26,8 +26,8 @@ WORKDIR /app
 # Create non-root user
 RUN groupadd -r mailhub && useradd -r -g mailhub mailhub
 
-# Copy Python packages and binaries from builder
-COPY --from=builder /usr/local /usr/local
+# Copy Python packages from builder (uv sync installs to .venv)
+COPY --from=builder /app/.venv /usr/local
 
 # Create config and state directories
 RUN mkdir -p /home/mailhub/.config/mailhub /home/mailhub/.local/state/mailhub \
