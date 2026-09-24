@@ -26,8 +26,8 @@ WORKDIR /app
 # Create non-root user
 RUN groupadd -r mailhub && useradd -r -g mailhub mailhub
 
-# Copy Python packages from builder (installed globally)
-COPY --from=builder /usr/local/lib/python3.11 /usr/local/lib/python3.11
+# Copy Python packages and binaries from builder
+COPY --from=builder /usr/local /usr/local
 
 # Create config and state directories
 RUN mkdir -p /home/mailhub/.config/mailhub /home/mailhub/.local/state/mailhub \
