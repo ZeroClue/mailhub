@@ -9,14 +9,14 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy dependency files
 COPY pyproject.toml uv.lock* ./
 
-# Install dependencies (without --frozen to allow lock file updates if needed)
+# Install dependencies
 RUN uv sync --no-install-project --extra dev
 
 # Copy source code
 COPY mailhub/ ./mailhub/
 
 # Install the package
-RUN uv pip install --no-cache -e .
+RUN uv pip install --no-cache -e . --no-deps
 
 # Final stage
 FROM python:3.11-slim
