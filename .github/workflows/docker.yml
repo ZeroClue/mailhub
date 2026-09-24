@@ -3,6 +3,7 @@ name: Docker Build Test
 on:
   push:
     branches: [main]
+    tags: [v*]
     paths:
       - 'Dockerfile'
       - 'docker-compose.yml'
