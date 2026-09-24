@@ -202,14 +202,14 @@ def create_app(config_file: Path | None = None) -> FastAPI:
     @app.get("/health")
     async def health():
         """Health check endpoint - returns basic status."""
-        return {"status": "ok", "version": "0.1.0"}
+        return {"status": "ok", "version": "0.1.1"}
 
     @app.get("/health/detailed")
     async def health_detailed():
         """Detailed health check - includes adapter status."""
         core = get_core()
         if core is None:
-            return {"status": "degraded", "version": "0.1.0", "error": "Core not initialized"}
+            return {"status": "degraded", "version": "0.1.1", "error": "Core not initialized"}
         
         adapter_status = {}
         for name, adapter in core._adapters.items():
@@ -223,7 +223,7 @@ def create_app(config_file: Path | None = None) -> FastAPI:
         all_ok = all(s.get("status") == "ok" for s in adapter_status.values())
         return {
             "status": "ok" if all_ok else "degraded",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "adapters": adapter_status
         }
 
