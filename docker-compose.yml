@@ -4,6 +4,7 @@ services:
   mailhub:
     build: .
     container_name: mailhub
+    command: ["mailhub", "serve", "--host", "0.0.0.0"]
     ports:
       - "8787:8787"
     environment:
