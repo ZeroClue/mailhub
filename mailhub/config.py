@@ -131,11 +131,28 @@ def load_config(path: Path | None = None) -> Config:
     return parse_config(data)
 
 
-CONFIG_TEMPLATE = """# Mailhub account registry. Add real accounts after M1.
+CONFIG_TEMPLATE = """# Mailhub account registry.
 #
 # [accounts.personal]
 # provider = "gmail"
 # capabilities = ["mail", "calendar", "contacts"]
+#
+# [accounts.work]
+# provider = "graph"
+# capabilities = ["mail", "calendar", "contacts", "tasks"]
+#
+# [accounts.imap_mail]
+# provider = "imap"
+# capabilities = ["mail"]
+# email = "user@example.com"
+#
+# [imap]
+# host = "imap.example.com"
+# port = 993
+# smtp_host = "smtp.example.com"
+# smtp_port = 587
+# use_ssl = true
+# use_starttls = false
 """
 
 

@@ -155,6 +155,9 @@ class Core:
             if provider == "gmail":
                 from .gmail import GmailAdapter
                 self._adapters[provider] = GmailAdapter(self)
+            elif provider == "imap":
+                from .imap import create_imap_adapter
+                self._adapters[provider] = create_imap_adapter(self)
             elif provider == "graph":
                 from .graph import GraphAdapter
                 self._adapters[provider] = GraphAdapter(self)

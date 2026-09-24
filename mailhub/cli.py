@@ -62,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--state", type=_path, help="credential-state file path (for tests or custom XDG use)")
 
     auth = subcommands.add_parser("auth", help="authorize an account (OAuth flow)")
-    auth.add_argument("provider", choices=("gmail", "graph"), help="provider: gmail or graph")
+    auth.add_argument("provider", choices=("gmail", "graph", "imap"), help="provider: gmail or graph")
     auth.add_argument("alias", help="account alias from config")
     auth.add_argument("--code", help="authorization code or redirect URL from browser")
     auth.add_argument("--config", type=_path, help="configuration file path")
@@ -74,7 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--config", type=_path, help="configuration file path")
 
     reauth = subcommands.add_parser("reauth", help="re-authorize an account (force new consent)")
-    reauth.add_argument("provider", choices=("gmail", "graph"), help="provider: gmail or graph")
+    reauth.add_argument("provider", choices=("gmail", "graph", "imap"), help="provider: gmail or graph")
     reauth.add_argument("alias", help="account alias from config")
     reauth.add_argument("--config", type=_path, help="configuration file path")
 
@@ -417,6 +417,29 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         account = config.account(args.alias)
         provider: Provider = account.provider
+
+        # IMAP uses app password, not OAuth
+        if provider == "imap":
+            app_password = input("Enter app password: ").strip()
+            if not app_password:
+                _print_error("mailhub: app password required for IMAP")
+                return 1
+
+            store = CredentialStore(args.state or state_path())
+            store.initialize()
+            data = store.load()
+            accounts = data.setdefault("accounts", {})
+            accounts[args.alias] = {
+                "access_token": "",
+                "refresh_token": app_password,
+                "expires_at": 0,
+                "client_id": account.email or "",
+                "client_secret": app_password,
+            }
+            store.save(data)
+            print(f"Successfully configured {args.alias} (IMAP with app password)")
+            return 0
+
         client_cfg = config.provider_config(provider)
 
         if not args.code:
@@ -482,8 +505,30 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         account = config.account(args.alias)
         provider: Provider = account.provider
-        client_cfg = config.provider_config(provider)
 
+        # IMAP: just re-enter app password
+        if provider == "imap":
+            app_password = input("Enter new app password: ").strip()
+            if not app_password:
+                _print_error("mailhub: app password required for IMAP")
+                return 1
+
+            store = CredentialStore(args.state or state_path())
+            store.initialize()
+            data = store.load()
+            accounts = data.setdefault("accounts", {})
+            accounts[args.alias] = {
+                "access_token": "",
+                "refresh_token": app_password,
+                "expires_at": 0,
+                "client_id": account.email or "",
+                "client_secret": app_password,
+            }
+            store.save(data)
+            print(f"Successfully updated {args.alias} (IMAP with app password)")
+            return 0
+
+        client_cfg = config.provider_config(provider)
         url, _ = auth_url(provider, client_cfg["client_id"], account.email, args.alias)
         print(f"Open this URL in your browser (forced consent):\n{url}\n")
         print("After consent, copy the full redirect URL and run:")
