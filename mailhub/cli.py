@@ -461,9 +461,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("Note: Edit ~/.config/mailhub/config.toml to customize IMAP/SMTP host/port settings")
             return 0
 
-        client_cfg = config.provider_config(provider)
+        # Use per-account OAuth credentials if available, otherwise provider-level
+        client_cfg = config.provider_config(provider, args.alias)
 
         if not args.code:
+            if not client_cfg["client_id"]:
+                _print_error(f"mailhub: no client_id configured for {args.alias} (provider {provider})")
+                return 1
             url, state_obj = auth_url(provider, client_cfg["client_id"], account.email, args.alias)
             print(f"Open this URL in your browser:\n{url}\n")
             print("After consent, the browser will show a 404 at localhost:8788.")
@@ -559,7 +563,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"Successfully updated {args.alias} (IMAP with {auth_method} auth)")
             return 0
 
-        client_cfg = config.provider_config(provider)
+        client_cfg = config.provider_config(provider, args.alias)
+        if not client_cfg["client_id"]:
+            _print_error(f"mailhub: no client_id configured for {args.alias} (provider {provider})")
+            return 1
         url, _ = auth_url(provider, client_cfg["client_id"], account.email, args.alias)
         print(f"Open this URL in your browser (forced consent):\n{url}\n")
         print("After consent, copy the full redirect URL and run:")

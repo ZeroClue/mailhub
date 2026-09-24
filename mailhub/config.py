@@ -46,8 +46,18 @@ class Config:
                 return account
         raise ConfigError(f"unknown account alias: {alias}")
 
-    def provider_config(self, provider: str) -> dict[str, str]:
-        """Get client_id and client_secret for a provider."""
+    def provider_config(self, provider: str, alias: str | None = None) -> dict[str, str]:
+        """Get client_id and client_secret for a provider (optionally for a specific account)."""
+        # First check account-level config if alias provided
+        if alias:
+            account_raw = self._raw.get("accounts", {}).get(alias, {})
+            if account_raw.get("client_id") or account_raw.get("client_secret"):
+                return {
+                    "client_id": account_raw.get("client_id", ""),
+                    "client_secret": account_raw.get("client_secret", ""),
+                }
+        
+        # Fall back to provider-level config
         raw_provider = self._raw.get(provider, {})
         return {
             "client_id": raw_provider.get("client_id", ""),
@@ -136,15 +146,29 @@ CONFIG_TEMPLATE = """# Mailhub account registry.
 # [accounts.personal]
 # provider = "gmail"
 # capabilities = ["mail", "calendar", "contacts"]
+# client_id = "personal-gcp-project-id"
+# client_secret = "personal-gcp-secret"
 #
 # [accounts.work]
 # provider = "graph"
 # capabilities = ["mail", "calendar", "contacts", "tasks"]
+# client_id = "work-entra-app-id"
+# client_secret = "work-entra-secret"
 #
 # [accounts.imap_mail]
 # provider = "imap"
 # capabilities = ["mail"]
 # email = "user@example.com"
+# client_id = "user@example.com"
+# client_secret = "app-password"
+#
+# [gmail]
+# client_id = "shared-gcp-project-id"
+# client_secret = "shared-gcp-secret"
+#
+# [graph]
+# client_id = "shared-entra-app-id"
+# client_secret = "shared-entra-secret"
 #
 # [imap]
 # host = "imap.example.com"
