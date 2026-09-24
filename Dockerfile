@@ -1,24 +1,4 @@
-# Multi-stage build for smaller final image
-FROM python:3.11-slim AS builder
-
-WORKDIR /app
-
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Copy dependency files and README (needed for package metadata)
-COPY pyproject.toml uv.lock* README.md ./
-
-# Install package with dependencies to system Python
-RUN uv pip install --system --no-cache .
-
-# Copy source code
-COPY mailhub/ ./mailhub/
-
-# Re-install package (non-editable)
-RUN uv pip install --system --no-cache .
-
-# Final stage
+# Single-stage build - simpler and more reliable
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -26,11 +6,14 @@ WORKDIR /app
 # Create non-root user
 RUN groupadd -r mailhub && useradd -r -g mailhub mailhub
 
-# Copy Python packages and binaries from builder (installed to /usr/local)
-COPY --from=builder /usr/local /usr/local
+# Install system dependencies and Python packages
+RUN pip install --no-cache-dir httpx mcp==1.12.4 fastapi uvicorn[standard] pydantic pydantic-settings python-dotenv
 
-# Install runtime dependencies via pip (fallback)
-RUN pip install --no-cache-dir httpx mcp==1.12.4
+# Copy source code
+COPY mailhub/ ./mailhub/
+
+# Install the package
+RUN pip install --no-cache-dir -e .
 
 # Create config and state directories
 RUN mkdir -p /home/mailhub/.config/mailhub /home/mailhub/.local/state/mailhub \
