@@ -9,6 +9,7 @@ services:
       - "8787:8787"
     environment:
       - MAILHUB_CONFIG=/home/mailhub/.config/mailhub/config.toml
+      - MAILHUB_ALLOW_NON_LOOPBACK=1
     volumes:
       - mailhub-config:/home/mailhub/.config/mailhub
       - mailhub-state:/home/mailhub/.local/state/mailhub
