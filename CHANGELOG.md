@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-09-24
+
+### Added
+- **Health endpoints**: `GET /health` (basic) and `GET /health/detailed` (per-adapter status)
+- **Graceful shutdown**: SIGTERM/SIGINT handling with adapter cleanup and flush time
+- **Docker support**: Multi-stage Dockerfile, docker-compose.yml, .dockerignore
+- **Docker security hardening**: non-root user, multi-stage build, no secrets in image
+- **MCP server info**: `server_name`, `server_version`, `instructions` in initialize response
+- **MCP capabilities**: Proper `tools` capability exposure in initialize response
+- **README**: MCP configuration examples for all major AI clients (Claude Desktop, Cursor, VS Code, Windsurf, Continue, Zed, Cody)
+- **Docker non-loopback support**: `MAILHUB_ALLOW_NON_LOOPBACK` env var for container deployments
+
+### Fixed
+- CI/CD: Added `[project.optional-dependencies]` for `dev` extra (pytest, pytest-asyncio)
+- Docker: Fixed build context and package installation
+
 ## [0.1.1] - 2026-09-23
 
 ### Added
