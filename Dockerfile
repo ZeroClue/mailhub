@@ -9,7 +9,8 @@ RUN groupadd -r mailhub && useradd -r -g mailhub mailhub
 # Install system dependencies and Python packages
 RUN pip install --no-cache-dir httpx mcp==1.12.4 fastapi uvicorn[standard] pydantic pydantic-settings python-dotenv
 
-# Copy source code
+# Copy pyproject.toml and source code
+COPY pyproject.toml README.md ./
 COPY mailhub/ ./mailhub/
 
 # Install the package
