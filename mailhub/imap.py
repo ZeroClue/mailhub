@@ -68,28 +68,34 @@ class IMAPAdapter:
         self._configs: dict[str, IMAPConfig] = {}
 
     def _get_config(self, alias: str) -> IMAPConfig:
-        """Get IMAP config for account."""
+        """Get IMAP config for account - per-account config with global fallback."""
         if alias not in self._configs:
             account = self._core._config.account(alias)
             creds = self._core._load_credentials(alias)
             
-            # Get provider-specific config from [imap] section
-            raw = self._core._config._raw.get("imap", {})
+            # Get global [imap] section as fallback
+            global_raw = self._core._config._raw.get("imap", {})
+            
+            # Get per-account settings from account's raw config
+            account_raw = self._core._config._raw.get("accounts", {}).get(alias, {})
+            
+            # Merge: per-account settings override global
+            raw = {**global_raw, **account_raw}
             
             self._configs[alias] = IMAPConfig(
-                host=raw.get("host", "imap.gmail.com"),
-                port=raw.get("port", 993),
-                username=creds.client_id or account.email or "",
-                password=creds.client_secret or creds.refresh_token or "",
-                use_ssl=raw.get("use_ssl", True),
-                use_starttls=raw.get("use_starttls", False),
-                smtp_host=raw.get("smtp_host"),
-                smtp_port=raw.get("smtp_port"),
-                smtp_username=raw.get("smtp_username"),
-                smtp_password=raw.get("smtp_password"),
-                smtp_use_ssl=raw.get("smtp_use_ssl"),
-                smtp_use_starttls=raw.get("smtp_use_starttls"),
-                auth_method=raw.get("auth_method", "plain"),
+                host=raw.get("host", raw.get("imap_host", "imap.gmail.com")),
+                port=raw.get("port", raw.get("imap_port", 993)),
+                username=creds.client_id or account.email or raw.get("imap_username", ""),
+                password=creds.client_secret or creds.refresh_token or raw.get("imap_password", ""),
+                use_ssl=raw.get("use_ssl", raw.get("imap_use_ssl", True)),
+                use_starttls=raw.get("use_starttls", raw.get("imap_use_starttls", False)),
+                smtp_host=raw.get("smtp_host", raw.get("imap_smtp_host")),
+                smtp_port=raw.get("smtp_port", raw.get("imap_smtp_port")),
+                smtp_username=raw.get("smtp_username", raw.get("imap_smtp_username")),
+                smtp_password=raw.get("smtp_password", raw.get("imap_smtp_password")),
+                smtp_use_ssl=raw.get("smtp_use_ssl", raw.get("imap_smtp_use_ssl")),
+                smtp_use_starttls=raw.get("smtp_use_starttls", raw.get("imap_smtp_use_starttls")),
+                auth_method=raw.get("auth_method", raw.get("imap_auth_method", "plain")),
             )
         return self._configs[alias]
 
