@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-09-24
+
+### Added
+- **IMAP/SMTP adapter** — Generic IMAP/SMTP support for mail operations
+- **IMAP app password auth** — `mailhub auth imap <alias>` prompts for app password
+- **Full mail operations via IMAP** — folders, search, get, send, draft, move, trash
+- **IMAP configuration** — host, port, SSL/TLS, SMTP settings in config.toml
+- **Config template** — IMAP/SMTP example in generated config
+- **README** — IMAP/SMTP setup instructions
+
+### Fixed
+- Core now loads IMAP adapter alongside Gmail/Graph
+
 ## [0.1.2] - 2026-09-24
 
 ### Added
