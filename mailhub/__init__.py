@@ -2,6 +2,6 @@
 
 from .config import Account, Config, ConfigError, load_config
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 __all__ = ["Account", "Config", "ConfigError", "load_config", "__version__"]
