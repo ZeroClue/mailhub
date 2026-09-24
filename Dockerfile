@@ -26,8 +26,9 @@ WORKDIR /app
 # Create non-root user
 RUN groupadd -r mailhub && useradd -r -g mailhub mailhub
 
-# Copy Python packages from builder (uv sync installs to .venv)
-COPY --from=builder /app/.venv /usr/local
+# Copy Python packages from builder .venv
+COPY --from=builder /app/.venv/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /app/.venv/bin /usr/local/bin
 
 # Create config and state directories
 RUN mkdir -p /home/mailhub/.config/mailhub /home/mailhub/.local/state/mailhub \
