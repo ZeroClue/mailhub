@@ -9,14 +9,14 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy dependency files and README (needed for package metadata)
 COPY pyproject.toml uv.lock* README.md ./
 
-# Install dependencies globally to /usr/local/lib/python3.11/site-packages
+# Install dependencies globally
 RUN uv pip install --system --no-cache -r pyproject.toml --extra dev
 
 # Copy source code
 COPY mailhub/ ./mailhub/
 
-# Install the package globally
-RUN uv pip install --system --no-cache -e .
+# Install the package globally (non-editable)
+RUN uv pip install --system --no-cache .
 
 # Final stage
 FROM python:3.11-slim
