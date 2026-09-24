@@ -9,13 +9,13 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy dependency files and README (needed for package metadata)
 COPY pyproject.toml uv.lock* README.md ./
 
-# Install dependencies to system Python
-RUN uv pip install --system --no-cache -r pyproject.toml --extra dev
+# Install package with dependencies to system Python (this installs both)
+RUN uv pip install --system --no-cache .
 
 # Copy source code
 COPY mailhub/ ./mailhub/
 
-# Install the package to system Python (non-editable)
+# Re-install package (non-editable)
 RUN uv pip install --system --no-cache .
 
 # Final stage
