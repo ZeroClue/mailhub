@@ -418,26 +418,47 @@ def main(argv: Sequence[str] | None = None) -> int:
         account = config.account(args.alias)
         provider: Provider = account.provider
 
-        # IMAP uses app password, not OAuth
+        # IMAP supports multiple auth methods
         if provider == "imap":
-            app_password = input("Enter app password: ").strip()
-            if not app_password:
-                _print_error("mailhub: app password required for IMAP")
+            print("IMAP/SMTP Configuration:")
+            print("  Auth methods: plain (username/password), app_password")
+            print("  For OAuth2, use 'oauth2' (not yet implemented)")
+            
+            # Get auth method
+            auth_method = input("Auth method [plain/app_password] [plain]: ").strip() or "plain"
+            
+            # Get IMAP credentials
+            imap_username = input(f"IMAP username [{account.email}]: ").strip() or account.email
+            imap_password = input("IMAP password: ").strip()
+            if not imap_password:
+                _print_error("mailhub: IMAP password required")
                 return 1
-
+            
+            # Get SMTP credentials (optional, separate from IMAP)
+            print("\nSMTP Configuration (press Enter to use IMAP settings):")
+            smtp_username = input(f"SMTP username [{imap_username}]: ").strip()
+            smtp_password = input(f"SMTP password [{imap_password}]: ").strip()
+            
+            # Store credentials
             store = CredentialStore(args.state or state_path())
             store.initialize()
             data = store.load()
             accounts = data.setdefault("accounts", {})
+            
             accounts[args.alias] = {
                 "access_token": "",
-                "refresh_token": app_password,
+                "refresh_token": imap_password,
                 "expires_at": 0,
-                "client_id": account.email or "",
-                "client_secret": app_password,
+                "client_id": imap_username,
+                "client_secret": imap_password,
+                "smtp_username": smtp_username,
+                "smtp_password": smtp_password,
+                "auth_method": auth_method,
             }
             store.save(data)
-            print(f"Successfully configured {args.alias} (IMAP with app password)")
+            
+            print(f"Successfully configured {args.alias} (IMAP with {auth_method} auth)")
+            print("Note: Edit ~/.config/mailhub/config.toml to customize IMAP/SMTP host/port settings")
             return 0
 
         client_cfg = config.provider_config(provider)
@@ -506,26 +527,36 @@ def main(argv: Sequence[str] | None = None) -> int:
         account = config.account(args.alias)
         provider: Provider = account.provider
 
-        # IMAP: just re-enter app password
+        # IMAP: re-enter credentials
         if provider == "imap":
-            app_password = input("Enter new app password: ").strip()
-            if not app_password:
-                _print_error("mailhub: app password required for IMAP")
+            print("IMAP/SMTP Re-configuration:")
+            auth_method = input("Auth method [plain/app_password] [plain]: ").strip() or "plain"
+            imap_username = input(f"IMAP username [{account.email}]: ").strip() or account.email
+            imap_password = input("IMAP password: ").strip()
+            if not imap_password:
+                _print_error("mailhub: IMAP password required")
                 return 1
-
+            
+            print("\nSMTP Configuration (press Enter to use IMAP settings):")
+            smtp_username = input(f"SMTP username [{imap_username}]: ").strip()
+            smtp_password = input(f"SMTP password [{imap_password}]: ").strip()
+            
             store = CredentialStore(args.state or state_path())
             store.initialize()
             data = store.load()
             accounts = data.setdefault("accounts", {})
             accounts[args.alias] = {
                 "access_token": "",
-                "refresh_token": app_password,
+                "refresh_token": imap_password,
                 "expires_at": 0,
-                "client_id": account.email or "",
-                "client_secret": app_password,
+                "client_id": imap_username,
+                "client_secret": imap_password,
+                "smtp_username": smtp_username,
+                "smtp_password": smtp_password,
+                "auth_method": auth_method,
             }
             store.save(data)
-            print(f"Successfully updated {args.alias} (IMAP with app password)")
+            print(f"Successfully updated {args.alias} (IMAP with {auth_method} auth)")
             return 0
 
         client_cfg = config.provider_config(provider)

@@ -12,23 +12,52 @@ from dataclasses import dataclass
 from email.message import EmailMessage
 from typing import Any, Optional
 
-from .config import ConfigError
 from .core import CoreError, SendDenied
-from .util import split_addrs
 
 
 @dataclass
 class IMAPConfig:
     """IMAP/SMTP connection configuration."""
+    # IMAP settings
     host: str
     port: int = 993
-    smtp_host: Optional[str] = None
-    smtp_port: int = 587
     username: str = ""
-    password: str = ""  # app password or OAuth token
+    password: str = ""  # can be app password or regular password
     use_ssl: bool = True
     use_starttls: bool = False
-    timeout: int = 30
+    
+    # SMTP settings (optional, defaults to IMAP settings)
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_use_ssl: Optional[bool] = None
+    smtp_use_starttls: Optional[bool] = None
+    
+    # Auth method
+    auth_method: str = "plain"  # "plain", "oauth2", "app_password"
+    
+    def get_smtp_host(self) -> str:
+        return self.smtp_host or self.host.replace('imap', 'smtp')
+    
+    def get_smtp_port(self) -> int:
+        return self.smtp_port or (465 if (self.smtp_use_ssl or self.use_ssl) else 587)
+    
+    def get_smtp_username(self) -> str:
+        return self.smtp_username or self.username
+    
+    def get_smtp_password(self) -> str:
+        return self.smtp_password or self.password
+    
+    def get_smtp_use_ssl(self) -> bool:
+        if self.smtp_use_ssl is not None:
+            return self.smtp_use_ssl
+        return self.use_ssl
+    
+    def get_smtp_use_starttls(self) -> bool:
+        if self.smtp_use_starttls is not None:
+            return self.smtp_use_starttls
+        return self.use_starttls
 
 
 class IMAPAdapter:
@@ -39,23 +68,28 @@ class IMAPAdapter:
         self._configs: dict[str, IMAPConfig] = {}
 
     def _get_config(self, alias: str) -> IMAPConfig:
-        """Get IMAP config for account, with defaults."""
+        """Get IMAP config for account."""
         if alias not in self._configs:
             account = self._core._config.account(alias)
             creds = self._core._load_credentials(alias)
             
-            # Get provider-specific config
+            # Get provider-specific config from [imap] section
             raw = self._core._config._raw.get("imap", {})
             
             self._configs[alias] = IMAPConfig(
                 host=raw.get("host", "imap.gmail.com"),
                 port=raw.get("port", 993),
-                smtp_host=raw.get("smtp_host", "smtp.gmail.com"),
-                smtp_port=raw.get("smtp_port", 587),
                 username=creds.client_id or account.email or "",
                 password=creds.client_secret or creds.refresh_token or "",
                 use_ssl=raw.get("use_ssl", True),
                 use_starttls=raw.get("use_starttls", False),
+                smtp_host=raw.get("smtp_host"),
+                smtp_port=raw.get("smtp_port"),
+                smtp_username=raw.get("smtp_username"),
+                smtp_password=raw.get("smtp_password"),
+                smtp_use_ssl=raw.get("smtp_use_ssl"),
+                smtp_use_starttls=raw.get("smtp_use_starttls"),
+                auth_method=raw.get("auth_method", "plain"),
             )
         return self._configs[alias]
 
@@ -69,19 +103,33 @@ class IMAPAdapter:
             if config.use_starttls:
                 conn.starttls()
         
-        conn.login(config.username, config.password)
+        # Support different auth methods
+        if config.auth_method == "oauth2":
+            # OAuth2 auth would go here (XOAUTH2)
+            raise NotImplementedError("OAuth2 auth not yet implemented for IMAP")
+        else:
+            # Plain auth (username/password or app password)
+            conn.login(config.username, config.password)
         return conn
 
     def _connect_smtp(self, config: IMAPConfig) -> smtplib.SMTP:
         """Create SMTP connection."""
-        if config.use_ssl and config.smtp_port == 465:
-            conn = smtplib.SMTP_SSL(config.smtp_host, config.smtp_port, timeout=config.timeout)
+        smtp_host = config.get_smtp_host()
+        smtp_port = config.get_smtp_port()
+        smtp_user = config.get_smtp_username()
+        smtp_pass = config.get_smtp_password()
+        
+        if config.get_smtp_use_ssl() and smtp_port == 465:
+            conn = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=config.timeout)
         else:
-            conn = smtplib.SMTP(config.smtp_host, config.smtp_port, timeout=config.timeout)
-            if config.use_starttls or config.smtp_port == 587:
+            conn = smtplib.SMTP(smtp_host, smtp_port, timeout=config.timeout)
+            if config.get_smtp_use_starttls() or smtp_port == 587:
                 conn.starttls()
         
-        conn.login(config.username, config.password)
+        if config.auth_method == "oauth2":
+            raise NotImplementedError("OAuth2 auth not yet implemented for SMTP")
+        else:
+            conn.login(smtp_user, smtp_pass)
         return conn
 
     def _parse_message(self, msg_data: bytes) -> dict[str, Any]:
@@ -134,13 +182,14 @@ class IMAPAdapter:
             'text_body': text_body,
             'html_body': html_body,
             'attachments': attachments,
-            'labels': [],  # IMAP doesn't have labels, uses folders
+            'labels': [],
             'flags': [],
         }
 
     def folders(self, alias: str) -> list[dict[str, Any]]:
         """List IMAP folders."""
         config = self._get_config(alias)
+        config.timeout = 30
         conn = self._connect_imap(config)
         try:
             status, folders = conn.list()
@@ -150,7 +199,6 @@ class IMAPAdapter:
             result = []
             for folder in folders:
                 folder = folder.decode('utf-8')
-                # Parse folder name from LIST response
                 match = re.search(r'"([^"]*)"$', folder)
                 if match:
                     name = match.group(1)
@@ -165,16 +213,14 @@ class IMAPAdapter:
     def search(self, alias: str, query: str, max_results: int = 50, page_token: str | None = None) -> dict[str, Any]:
         """Search messages using IMAP SEARCH."""
         config = self._get_config(alias)
+        config.timeout = 30
         conn = self._connect_imap(config)
         try:
-            # Select INBOX by default, or use page_token as folder
             folder = page_token or 'INBOX'
             status, _ = conn.select(folder, readonly=True)
             if status != 'OK':
                 raise CoreError(f"Failed to select folder {folder}")
             
-            # Parse query - simple IMAP search
-            # Support basic: from:xxx, to:xxx, subject:xxx, before:date, after:date
             imap_query = self._parse_search_query(query)
             
             status, data = conn.search(None, imap_query)
@@ -182,10 +228,10 @@ class IMAPAdapter:
                 raise CoreError(f"Search failed: {data}")
             
             msg_ids = data[0].split() if data[0] else []
-            msg_ids = msg_ids[-max_results:]  # Get most recent
+            msg_ids = msg_ids[-max_results:]
             
             messages = []
-            for msg_id in reversed(msg_ids):  # Newest first
+            for msg_id in reversed(msg_ids):
                 status, data = conn.fetch(msg_id, '(RFC822)')
                 if status == 'OK' and data:
                     msg_data = data[0][1]
@@ -236,9 +282,9 @@ class IMAPAdapter:
     def get(self, alias: str, message_id: str) -> dict[str, Any]:
         """Get a message by ID."""
         config = self._get_config(alias)
+        config.timeout = 30
         conn = self._connect_imap(config)
         try:
-            # Search for message by Message-ID
             status, data = conn.search(None, f'HEADER Message-ID "{message_id}"')
             if status != 'OK' or not data[0]:
                 raise CoreError(f"Message not found: {message_id}")
@@ -265,9 +311,8 @@ class IMAPAdapter:
         
         config = self._get_config(alias)
         
-        # Build message
         msg = EmailMessage()
-        msg['From'] = config.username
+        msg['From'] = config.get_smtp_username()
         msg['To'] = ', '.join(to)
         if cc:
             msg['Cc'] = ', '.join(cc)
@@ -288,7 +333,7 @@ class IMAPAdapter:
         
         conn = self._connect_smtp(config)
         try:
-            conn.send_message(msg, from_addr=config.username, to_addrs=all_recipients)
+            conn.send_message(msg, from_addr=config.get_smtp_username(), to_addrs=all_recipients)
             return {'id': 'sent', 'status': 'sent'}
         finally:
             try:
@@ -303,7 +348,7 @@ class IMAPAdapter:
         config = self._get_config(alias)
         
         msg = EmailMessage()
-        msg['From'] = config.username
+        msg['From'] = config.get_smtp_username()
         msg['To'] = ', '.join(to)
         if cc:
             msg['Cc'] = ', '.join(cc)
@@ -323,7 +368,6 @@ class IMAPAdapter:
         conn = self._connect_imap(config)
         try:
             conn.select('Drafts', readonly=False)
-            # IMAP APPEND
             msg_bytes = msg.as_bytes()
             conn.append('Drafts', '', imaplib.Time2Internaldate(time.time()), msg_bytes)
             return {'id': 'draft', 'status': 'draft'}
@@ -336,6 +380,7 @@ class IMAPAdapter:
     def move(self, alias: str, message_id: str, destination: str) -> dict[str, Any]:
         """Move message to folder."""
         config = self._get_config(alias)
+        config.timeout = 30
         conn = self._connect_imap(config)
         try:
             status, data = conn.search(None, f'HEADER Message-ID "{message_id}"')
