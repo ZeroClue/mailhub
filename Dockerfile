@@ -9,7 +9,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy dependency files and README (needed for package metadata)
 COPY pyproject.toml uv.lock* README.md ./
 
-# Install package with dependencies to system Python (this installs both)
+# Install package with dependencies to system Python
 RUN uv pip install --system --no-cache .
 
 # Copy source code
@@ -28,6 +28,9 @@ RUN groupadd -r mailhub && useradd -r -g mailhub mailhub
 
 # Copy Python packages and binaries from builder (installed to /usr/local)
 COPY --from=builder /usr/local /usr/local
+
+# Install runtime dependencies via pip (fallback)
+RUN pip install --no-cache-dir httpx mcp==1.12.4
 
 # Create config and state directories
 RUN mkdir -p /home/mailhub/.config/mailhub /home/mailhub/.local/state/mailhub \
