@@ -65,21 +65,21 @@ def create_app(config_file: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="Mailhub",
         description="Local personal-operations hub for AI assistants",
-        version="0.1.16",
+        version="0.1.17",
         lifespan=lifespan,
     )
 
     @app.get("/health")
     async def health():
         """Health check endpoint - returns basic status."""
-        return {"status": "ok", "version": "0.1.16"}
+        return {"status": "ok", "version": "0.1.17"}
 
     @app.get("/health/detailed")
     async def health_detailed():
         """Detailed health check - includes adapter status."""
         core = get_core()
         if core is None:
-            return {"status": "degraded", "version": "0.1.16", "error": "Core not initialized"}
+            return {"status": "degraded", "version": "0.1.17", "error": "Core not initialized"}
         
         adapter_status = {}
         for name, adapter in core._adapters.items():
@@ -93,7 +93,7 @@ def create_app(config_file: Path | None = None) -> FastAPI:
         all_ok = all(s.get("status") == "ok" for s in adapter_status.values())
         return {
             "status": "ok" if all_ok else "degraded",
-            "version": "0.1.16",
+            "version": "0.1.17",
             "adapters": adapter_status
         }
 
@@ -170,7 +170,8 @@ def create_app(config_file: Path | None = None) -> FastAPI:
                 html_body=msg.html_body,
                 in_reply_to=msg.in_reply_to,
                 references=msg.references,
-                confirm=True,
+                confirm=msg.confirm,
+                attachments=msg.attachments,
             )
         except CoreError as e:
             raise HTTPException(400, str(e))
@@ -197,6 +198,7 @@ def create_app(config_file: Path | None = None) -> FastAPI:
                 html_body=msg.html_body,
                 in_reply_to=msg.in_reply_to,
                 references=msg.references,
+                attachments=msg.attachments,
             )
         except CoreError as e:
             raise HTTPException(400, str(e))
@@ -234,6 +236,207 @@ def create_app(config_file: Path | None = None) -> FastAPI:
         except CoreError as e:
             raise HTTPException(400, str(e))
 
+    @app.post("/accounts/{alias}/folders")
+    async def create_folder(
+        alias: str,
+        req: FolderCreateRequest,
+        scope: str = Depends(verify_token),
+    ):
+        if scope != "full":
+            raise HTTPException(403, "full scope required for folder creation")
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.create_folder(alias, req.name)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.delete("/accounts/{alias}/folders/{folder_name}")
+    async def delete_folder(
+        alias: str,
+        folder_name: str,
+        scope: str = Depends(verify_token),
+    ):
+        if scope != "full":
+            raise HTTPException(403, "full scope required for folder deletion")
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.delete_folder(alias, folder_name)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.patch("/accounts/{alias}/folders/{folder_name}")
+    async def rename_folder(
+        alias: str,
+        folder_name: str,
+        req: FolderRenameRequest,
+        scope: str = Depends(verify_token),
+    ):
+        if scope != "full":
+            raise HTTPException(403, "full scope required for folder rename")
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.rename_folder(alias, folder_name, req.new_name)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.get("/accounts/{alias}/folders/status")
+    async def get_all_folder_status(
+        alias: str,
+        scope: str = Depends(verify_token),
+    ):
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.folder_statuses(alias)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.get("/accounts/{alias}/folders/{folder_name}/status")
+    async def get_folder_status(
+        alias: str,
+        folder_name: str,
+        scope: str = Depends(verify_token),
+    ):
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.folder_status(alias, folder_name)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.get("/accounts/{alias}/special-folders")
+    async def get_special_folders(
+        alias: str,
+        scope: str = Depends(verify_token),
+    ):
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.special_use_folders(alias)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.post("/accounts/{alias}/messages/flags")
+    async def set_message_flags(
+        alias: str,
+        req: MessageFlagsRequest,
+        scope: str = Depends(verify_token),
+    ):
+        if scope != "full":
+            raise HTTPException(403, "full scope required for flag operations")
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.set_message_flags(alias, req.message_ids, req.add_flags, req.remove_flags)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.post("/accounts/{alias}/messages/mark-read")
+    async def mark_read(
+        alias: str,
+        req: MessageFlagsRequest,
+        scope: str = Depends(verify_token),
+    ):
+        if scope != "full":
+            raise HTTPException(403, "full scope required")
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.mark_read(alias, req.message_ids)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.post("/accounts/{alias}/messages/mark-unread")
+    async def mark_unread(
+        alias: str,
+        req: MessageFlagsRequest,
+        scope: str = Depends(verify_token),
+    ):
+        if scope != "full":
+            raise HTTPException(403, "full scope required")
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.mark_unread(alias, req.message_ids)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.post("/accounts/{alias}/messages/flag")
+    async def flag_messages(
+        alias: str,
+        req: MessageFlagsRequest,
+        scope: str = Depends(verify_token),
+    ):
+        if scope != "full":
+            raise HTTPException(403, "full scope required")
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.flag_messages(alias, req.message_ids)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.post("/accounts/{alias}/messages/unflag")
+    async def unflag_messages(
+        alias: str,
+        req: MessageFlagsRequest,
+        scope: str = Depends(verify_token),
+    ):
+        if scope != "full":
+            raise HTTPException(403, "full scope required")
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.unflag_messages(alias, req.message_ids)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.post("/accounts/{alias}/messages/batch-move")
+    async def batch_move(
+        alias: str,
+        req: BatchMoveRequest,
+        scope: str = Depends(verify_token),
+    ):
+        if scope != "full":
+            raise HTTPException(403, "full scope required for batch move")
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.batch_move(alias, req.message_ids, req.destination)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
+    @app.post("/accounts/{alias}/messages/batch-delete")
+    async def batch_delete(
+        alias: str,
+        req: MessageFlagsRequest,
+        scope: str = Depends(verify_token),
+    ):
+        if scope != "full":
+            raise HTTPException(403, "full scope required for batch delete")
+        core = get_core()
+        if core is None:
+            raise HTTPException(503, "Core not initialized")
+        try:
+            return core.batch_delete(alias, req.message_ids)
+        except CoreError as e:
+            raise HTTPException(400, str(e))
+
     return app
 
 
@@ -242,6 +445,31 @@ class AccountStatus(BaseModel):
     provider: str
     capabilities: list[str]
     email: str
+
+
+class FolderCreateRequest(BaseModel):
+    name: str
+
+
+class FolderRenameRequest(BaseModel):
+    new_name: str
+
+
+class MessageFlagsRequest(BaseModel):
+    message_ids: list[str]
+    add_flags: list[str] | None = None
+    remove_flags: list[str] | None = None
+
+
+class BatchMoveRequest(BaseModel):
+    message_ids: list[str]
+    destination: str
+
+
+class Attachment(BaseModel):
+    path: str
+    filename: str | None = None
+    content_type: str = "application/octet-stream"
 
 
 class SendRequest(BaseModel):
@@ -253,6 +481,8 @@ class SendRequest(BaseModel):
     html_body: str | None = None
     in_reply_to: str | None = None
     references: list[str] = []
+    confirm: bool = False
+    attachments: list[Attachment] = []
 
 
 class DraftRequest(BaseModel):
@@ -264,6 +494,7 @@ class DraftRequest(BaseModel):
     html_body: str | None = None
     in_reply_to: str | None = None
     references: list[str] = []
+    attachments: list[Attachment] = []
 
 
 class MoveRequest(BaseModel):

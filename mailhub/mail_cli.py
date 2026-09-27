@@ -184,6 +184,152 @@ def cmd_folders(args: argparse.Namespace, config_file: Path | None, state_file: 
         client.close()
 
 
+def cmd_folder_status(args: argparse.Namespace, config_file: Path | None, state_file: Path | None) -> int:
+    """Get folder status (message counts, unseen)."""
+    token = _get_token(args, config_file, state_file)
+    client = _make_client(args.url, token)
+    
+    try:
+        if args.folder:
+            response = client.get(f"/accounts/{args.account}/folders/{args.folder}/status")
+        else:
+            response = client.get(f"/accounts/{args.account}/folders/status")
+        data = _handle_response(response)
+        _output(data, args.json)
+        return 0
+    finally:
+        client.close()
+
+
+def cmd_special_folders(args: argparse.Namespace, config_file: Path | None, state_file: Path | None) -> int:
+    """Detect special-use folders (Inbox, Sent, Drafts, Trash, Junk, Archive)."""
+    token = _get_token(args, config_file, state_file)
+    client = _make_client(args.url, token)
+    
+    try:
+        response = client.get(f"/accounts/{args.account}/special-folders")
+        data = _handle_response(response)
+        _output(data, args.json)
+        return 0
+    finally:
+        client.close()
+
+
+def cmd_mark_read(args: argparse.Namespace, config_file: Path | None, state_file: Path | None) -> int:
+    """Mark messages as read."""
+    token = _get_token(args, config_file, state_file)
+    # Must use full token
+    tokens = _load_tokens(config_file, state_file)
+    if token != tokens.get("full_token") and not args.token:
+        raise MailCLIError("Mark read requires full-access token", 1)
+    
+    client = _make_client(args.url, token)
+    
+    try:
+        payload = {"message_ids": args.message_ids}
+        response = client.post(f"/accounts/{args.account}/messages/mark-read", json=payload)
+        data = _handle_response(response)
+        _output(data, args.json)
+        return 0
+    finally:
+        client.close()
+
+
+def cmd_mark_unread(args: argparse.Namespace, config_file: Path | None, state_file: Path | None) -> int:
+    """Mark messages as unread."""
+    token = _get_token(args, config_file, state_file)
+    tokens = _load_tokens(config_file, state_file)
+    if token != tokens.get("full_token") and not args.token:
+        raise MailCLIError("Mark unread requires full-access token", 1)
+    
+    client = _make_client(args.url, token)
+    
+    try:
+        payload = {"message_ids": args.message_ids}
+        response = client.post(f"/accounts/{args.account}/messages/mark-unread", json=payload)
+        data = _handle_response(response)
+        _output(data, args.json)
+        return 0
+    finally:
+        client.close()
+
+
+def cmd_flag(args: argparse.Namespace, config_file: Path | None, state_file: Path | None) -> int:
+    """Flag messages."""
+    token = _get_token(args, config_file, state_file)
+    tokens = _load_tokens(config_file, state_file)
+    if token != tokens.get("full_token") and not args.token:
+        raise MailCLIError("Flag requires full-access token", 1)
+    
+    client = _make_client(args.url, token)
+    
+    try:
+        payload = {"message_ids": args.message_ids}
+        response = client.post(f"/accounts/{args.account}/messages/flag", json=payload)
+        data = _handle_response(response)
+        _output(data, args.json)
+        return 0
+    finally:
+        client.close()
+
+
+def cmd_unflag(args: argparse.Namespace, config_file: Path | None, state_file: Path | None) -> int:
+    """Unflag messages."""
+    token = _get_token(args, config_file, state_file)
+    tokens = _load_tokens(config_file, state_file)
+    if token != tokens.get("full_token") and not args.token:
+        raise MailCLIError("Unflag requires full-access token", 1)
+    
+    client = _make_client(args.url, token)
+    
+    try:
+        payload = {"message_ids": args.message_ids}
+        response = client.post(f"/accounts/{args.account}/messages/unflag", json=payload)
+        data = _handle_response(response)
+        _output(data, args.json)
+        return 0
+    finally:
+        client.close()
+
+
+def cmd_batch_move(args: argparse.Namespace, config_file: Path | None, state_file: Path | None) -> int:
+    """Move multiple messages to a folder."""
+    token = _get_token(args, config_file, state_file)
+    tokens = _load_tokens(config_file, state_file)
+    if token != tokens.get("full_token") and not args.token:
+        raise MailCLIError("Batch move requires full-access token", 1)
+    
+    client = _make_client(args.url, token)
+    
+    try:
+        payload = {"message_ids": args.message_ids, "destination": args.destination}
+        response = client.post(f"/accounts/{args.account}/messages/batch-move", json=payload)
+        data = _handle_response(response)
+        _output(data, args.json)
+        return 0
+    finally:
+        client.close()
+
+
+def cmd_batch_delete(args: argparse.Namespace, config_file: Path | None, state_file: Path | None) -> int:
+    """Move multiple messages to Trash."""
+    token = _get_token(args, config_file, state_file)
+    tokens = _load_tokens(config_file, state_file)
+    if token != tokens.get("full_token") and not args.token:
+        raise MailCLIError("Batch delete requires full-access token", 1)
+    
+    client = _make_client(args.url, token)
+    
+    try:
+        payload = {"message_ids": args.message_ids}
+        response = client.post(f"/accounts/{args.account}/messages/batch-delete", json=payload)
+        data = _handle_response(response)
+        _output(data, args.json)
+        return 0
+    finally:
+        client.close()
+
+
 def cmd_search(args: argparse.Namespace, config_file: Path | None, state_file: Path | None) -> int:
     """Search messages."""
     token = _get_token(args, config_file, state_file)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import email
+import os
 import imaplib
 import re
 import smtplib
@@ -224,6 +225,204 @@ class IMAPAdapter:
             except Exception:
                 pass
 
+    def folder_status(self, alias: str, folder_name: str) -> dict[str, Any]:
+        """Get folder status (message counts, unseen, etc.) via IMAP STATUS."""
+        config = self._get_config(alias)
+        config.timeout = 30
+        conn = self._connect_imap(config)
+        try:
+            status, data = conn.status(folder_name, '(MESSAGES UNSEEN UIDNEXT UIDVALIDITY)')
+            if status != 'OK':
+                raise CoreError(f"Failed to get folder status: {data}")
+            
+            # Parse STATUS response: b'INBOX (MESSAGES 10 UNSEEN 2 UIDNEXT 15 UIDVALIDITY 123)'
+            result = {'folder': folder_name}
+            if data and data[0]:
+                line = data[0].decode('utf-8')
+                import re
+                for key in ['MESSAGES', 'UNSEEN', 'UIDNEXT', 'UIDVALIDITY']:
+                    match = re.search(rf'{key}\s+(\d+)', line)
+                    if match:
+                        result[key.lower()] = int(match.group(1))
+            return result
+        finally:
+            try:
+                conn.logout()
+            except Exception:
+                pass
+
+    def folder_statuses(self, alias: str) -> list[dict[str, Any]]:
+        """Get status for all folders."""
+        folders = self.folders(alias)
+        results = []
+        for folder in folders:
+            try:
+                status = self.folder_status(alias, folder['name'])
+                results.append(status)
+            except Exception as e:
+                results.append({'folder': folder['name'], 'error': str(e)})
+        return results
+
+    def get_special_use_folders(self, alias: str) -> dict[str, str]:
+        """Detect special-use folders (RFC 6154) like Inbox, Sent, Drafts, Trash, Junk, Archive."""
+        config = self._get_config(alias)
+        config.timeout = 30
+        conn = self._connect_imap(config)
+        try:
+            status, folders = conn.list()
+            if status != 'OK':
+                return {}
+            
+            # Try XLIST for Gmail-style special use
+            special_folders = {}
+            try:
+                status, xlist = conn.xlist('', '*')
+                if status == 'OK':
+                    for item in xlist:
+                        decoded = item.decode('utf-8')
+                        # XLIST response: (\HasNoChildren \Sent) "/" "[Gmail]/Sent Mail"
+                        match = re.search(r'\\([^)]+)\)\s+"([^"]+)"\s+"([^"]+)"', decoded)
+                        if match:
+                            flags = match.group(1).split()
+                            name = match.group(3)
+                            flag_map = {
+                                'Inbox': 'inbox',
+                                'Sent': 'sent',
+                                'Drafts': 'drafts',
+                                'Trash': 'trash',
+                                'Junk': 'junk',
+                                'Archive': 'archive',
+                            }
+                            for flag in flags:
+                                if flag in flag_map:
+                                    special_folders[flag_map[flag]] = name
+            except Exception:
+                pass
+            
+            # Fallback: try common names
+            if not special_folders:
+                common_names = {
+                    'inbox': ['INBOX', 'Inbox', 'inbox'],
+                    'sent': ['Sent', 'Sent Items', 'Sent Messages', '[Gmail]/Sent Mail'],
+                    'drafts': ['Drafts', 'Draft', '[Gmail]/Drafts'],
+                    'trash': ['Trash', 'Deleted Items', 'Deleted Messages', '[Gmail]/Trash'],
+                    'junk': ['Junk', 'Spam', 'Junk E-mail', '[Gmail]/Spam'],
+                    'archive': ['Archive', 'Archives', '[Gmail]/All Mail'],
+                }
+                folder_names = [f['name'] for f in self.folders(alias)]
+                for key, candidates in common_names.items():
+                    for candidate in candidates:
+                        if candidate in folder_names:
+                            special_folders[key] = candidate
+                            break
+            
+            return special_folders
+        finally:
+            try:
+                conn.logout()
+            except Exception:
+                pass
+
+    def set_message_flags(self, alias: str, message_ids: list[str], add_flags: list[str] = None, remove_flags: list[str] = None) -> dict[str, Any]:
+        """Add or remove flags (\Seen, \Flagged, etc.) from messages."""
+        if not add_flags and not remove_flags:
+            return {'error': 'No flags specified'}
+        
+        config = self._get_config(alias)
+        config.timeout = 30
+        conn = self._connect_imap(config)
+        results = []
+        try:
+            # Search across common folders
+            folders_to_search = ['INBOX', 'Sent', 'Drafts', 'Archive', 'Junk', 'Trash']
+            for msg_id in message_ids:
+                msg_num = None
+                source_folder = None
+                for folder in folders_to_search:
+                    try:
+                        status, _ = conn.select(folder, readonly=False)
+                        if status != 'OK':
+                            continue
+                        status, data = conn.search(None, f'HEADER Message-ID "{msg_id}"')
+                        if status == 'OK' and data[0]:
+                            msg_num = data[0].split()[0]
+                            source_folder = folder
+                            break
+                    except Exception:
+                        continue
+                
+                if not msg_num:
+                    results.append({'message_id': msg_id, 'status': 'not_found'})
+                    continue
+                
+                # Build STORE commands - IMAP store takes command and flags separately
+                if add_flags:
+                    status, data = conn.store(msg_num, '+FLAGS', f'({" ".join(add_flags)})')
+                    if status != 'OK':
+                        results.append({'message_id': msg_id, 'status': 'failed', 'error': str(data)})
+                        continue
+                if remove_flags:
+                    status, data = conn.store(msg_num, '-FLAGS', f'({" ".join(remove_flags)})')
+                    if status != 'OK':
+                        results.append({'message_id': msg_id, 'status': 'failed', 'error': str(data)})
+                        continue
+                if status == 'OK':
+                    results.append({'message_id': msg_id, 'folder': source_folder, 'status': 'updated'})
+                else:
+                    results.append({'message_id': msg_id, 'status': 'failed', 'error': str(data)})
+            
+            return {'results': results}
+        finally:
+            try:
+                conn.logout()
+            except Exception:
+                pass
+
+    def batch_move(self, alias: str, message_ids: list[str], destination: str) -> dict[str, Any]:
+        """Move multiple messages to a folder."""
+        config = self._get_config(alias)
+        config.timeout = 30
+        conn = self._connect_imap(config)
+        results = []
+        try:
+            folders_to_search = ['INBOX', 'Sent', 'Drafts', 'Archive', 'Junk', 'Trash']
+            for msg_id in message_ids:
+                msg_num = None
+                for folder in folders_to_search:
+                    try:
+                        status, _ = conn.select(folder, readonly=False)
+                        if status != 'OK':
+                            continue
+                        status, data = conn.search(None, f'HEADER Message-ID "{msg_id}"')
+                        if status == 'OK' and data[0]:
+                            msg_num = data[0].split()[0]
+                            break
+                    except Exception:
+                        continue
+                
+                if not msg_num:
+                    results.append({'message_id': msg_id, 'status': 'not_found'})
+                    continue
+                
+                status, _ = conn.copy(msg_num, destination)
+                if status == 'OK':
+                    conn.store(msg_num, '+FLAGS', '\Deleted')
+                    conn.expunge()
+                    results.append({'message_id': msg_id, 'status': 'moved'})
+                else:
+                    results.append({'message_id': msg_id, 'status': 'failed'})
+            
+            return {'results': results}
+        finally:
+            try:
+                conn.logout()
+            except Exception:
+                pass
+
+    def batch_delete(self, alias: str, message_ids: list[str]) -> dict[str, Any]:
+        """Move multiple messages to Trash."""
+        return self.batch_move(alias, message_ids, 'Trash')
+
     def search(self, alias: str, query: str, max_results: int = 50, page_token: str | None = None) -> dict[str, Any]:
         """Search messages using IMAP SEARCH."""
         config = self._get_config(alias)
@@ -331,8 +530,9 @@ class IMAPAdapter:
 
     def send(self, alias: str, to: list[str], cc: list[str], bcc: list[str],
              subject: str, text_body: str | None, html_body: str | None,
-             in_reply_to: str | None, references: list[str], confirm: bool) -> dict[str, Any]:
-        """Send message via SMTP."""
+             in_reply_to: str | None, references: list[str], confirm: bool,
+             attachments: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        """Send message via SMTP with optional attachments."""
         if not confirm:
             raise SendDenied("send requires confirm=true")
         
@@ -349,12 +549,33 @@ class IMAPAdapter:
         if references:
             msg['References'] = ' '.join(references)
         
-        if text_body:
-            msg.set_content(text_body)
-        if html_body:
+        # Handle attachments - use multipart/mixed
+        if attachments:
             if text_body:
-                msg.make_mixed()
-            msg.add_alternative(html_body, subtype='html')
+                msg.set_content(text_body)
+            if html_body:
+                if text_body:
+                    msg.make_mixed()
+                msg.add_alternative(html_body, subtype='html')
+            
+            for att in attachments:
+                # Handle both dict and Attachment model
+                if hasattr(att, 'model_dump'):
+                    att = att.model_dump()
+                file_path = att.get('path')
+                filename = att.get('filename', os.path.basename(file_path))
+                content_type = att.get('content_type', 'application/octet-stream')
+                main_type, sub_type = content_type.split('/', 1) if '/' in content_type else ('application', 'octet-stream')
+                
+                with open(file_path, 'rb') as f:
+                    msg.add_attachment(f.read(), maintype=main_type, subtype=sub_type, filename=filename)
+        else:
+            if text_body:
+                msg.set_content(text_body)
+            if html_body:
+                if text_body:
+                    msg.make_mixed()
+                msg.add_alternative(html_body, subtype='html')
         
         all_recipients = to + cc + bcc
         
@@ -370,8 +591,9 @@ class IMAPAdapter:
 
     def draft(self, alias: str, to: list[str], cc: list[str], bcc: list[str],
               subject: str, text_body: str | None, html_body: str | None,
-              in_reply_to: str | None, references: list[str]) -> dict[str, Any]:
-        """Create draft - save to Drafts folder via IMAP."""
+              in_reply_to: str | None, references: list[str],
+              attachments: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        """Create draft - save to Drafts folder via IMAP with optional attachments."""
         config = self._get_config(alias)
         
         msg = EmailMessage()
@@ -385,12 +607,33 @@ class IMAPAdapter:
         if references:
             msg['References'] = ' '.join(references)
         
-        if text_body:
-            msg.set_content(text_body)
-        if html_body:
+        # Handle attachments - use multipart/mixed
+        if attachments:
             if text_body:
-                msg.make_mixed()
-            msg.add_alternative(html_body, subtype='html')
+                msg.set_content(text_body)
+            if html_body:
+                if text_body:
+                    msg.make_mixed()
+                msg.add_alternative(html_body, subtype='html')
+            
+            for att in attachments:
+                # Handle both dict and Attachment model
+                if hasattr(att, 'model_dump'):
+                    att = att.model_dump()
+                file_path = att.get('path')
+                filename = att.get('filename', os.path.basename(file_path))
+                content_type = att.get('content_type', 'application/octet-stream')
+                main_type, sub_type = content_type.split('/', 1) if '/' in content_type else ('application', 'octet-stream')
+                
+                with open(file_path, 'rb') as f:
+                    msg.add_attachment(f.read(), maintype=main_type, subtype=sub_type, filename=filename)
+        else:
+            if text_body:
+                msg.set_content(text_body)
+            if html_body:
+                if text_body:
+                    msg.make_mixed()
+                msg.add_alternative(html_body, subtype='html')
         
         conn = self._connect_imap(config)
         try:
@@ -440,6 +683,54 @@ class IMAPAdapter:
     def trash(self, alias: str, message_id: str) -> dict[str, Any]:
         """Move message to Trash."""
         return self.move(alias, message_id, 'Trash')
+
+    def create_folder(self, alias: str, folder_name: str) -> dict[str, Any]:
+        """Create a new IMAP folder."""
+        config = self._get_config(alias)
+        config.timeout = 30
+        conn = self._connect_imap(config)
+        try:
+            status, data = conn.create(folder_name)
+            if status != 'OK':
+                raise CoreError(f"Failed to create folder: {data}")
+            return {'name': folder_name, 'status': 'created'}
+        finally:
+            try:
+                conn.logout()
+            except Exception:
+                pass
+
+    def delete_folder(self, alias: str, folder_name: str) -> dict[str, Any]:
+        """Delete an IMAP folder."""
+        config = self._get_config(alias)
+        config.timeout = 30
+        conn = self._connect_imap(config)
+        try:
+            status, data = conn.delete(folder_name)
+            if status != 'OK':
+                raise CoreError(f"Failed to delete folder: {data}")
+            return {'name': folder_name, 'status': 'deleted'}
+        finally:
+            try:
+                conn.logout()
+            except Exception:
+                pass
+
+    def rename_folder(self, alias: str, old_name: str, new_name: str) -> dict[str, Any]:
+        """Rename an IMAP folder."""
+        config = self._get_config(alias)
+        config.timeout = 30
+        conn = self._connect_imap(config)
+        try:
+            status, data = conn.rename(old_name, new_name)
+            if status != 'OK':
+                raise CoreError(f"Failed to rename folder: {data}")
+            return {'old_name': old_name, 'new_name': new_name, 'status': 'renamed'}
+        finally:
+            try:
+                conn.logout()
+            except Exception:
+                pass
 
     def close(self) -> None:
         """Close any open connections."""

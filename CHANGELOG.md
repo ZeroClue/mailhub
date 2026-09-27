@@ -1,3 +1,21 @@
+## [0.1.17] - 2026-09-27
+
+### Added
+- **Folder management** — Create, delete, rename folders via REST API and CLI
+- **Folder status** — Get message counts, unseen counts, UIDNEXT, UIDVALIDITY per folder
+- **Special-use folder detection** — Auto-identifies Inbox, Sent, Drafts, Trash, Junk, Archive
+- **Message flags** — Mark read/unread, flag/unflag via IMAP STORE
+- **Batch operations** — Move/delete multiple messages at once
+- **Attachments** — Send emails and create drafts with file attachments
+
+### Fixed
+- **IMAP STORE command** — Fixed flag operations to use proper IMAP4.store() signature
+- **Email multipart handling** — Fixed attachment handling in send/draft
+- **Pydantic models** — Added Attachment model to avoid forward reference issues
+
+### Changed
+- **Version bump to 0.1.17** — All version references synchronized
+
 ## [0.1.16] - 2026-09-27
 
 ### Fixed

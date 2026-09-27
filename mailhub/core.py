@@ -271,6 +271,7 @@ class Core:
         in_reply_to: str | None = None,
         references: list[str] | None = None,
         confirm: bool = False,
+        attachments: list[dict[str, Any]] | None = None,
     ) -> dict[str, object]:
         """Send a message (requires confirm=true and allowlist check)."""
         # Check confirm first (fail fast)
@@ -309,12 +310,14 @@ class Core:
             in_reply_to=in_reply_to,
             references=references or [],
             confirm=confirm,
+            attachments=attachments or [],
         )
         self._audit(account, "send", {
             "to": to,
             "cc": cc or [],
             "subject": subject,
             "message_id": result.get("id"),
+            "attachments": len(attachments) if attachments else 0,
         })
         return result
 
@@ -330,6 +333,7 @@ class Core:
         html_body: str | None = None,
         in_reply_to: str | None = None,
         references: list[str] | None = None,
+        attachments: list[dict[str, Any]] | None = None,
     ) -> dict[str, object]:
         """Create a draft message."""
         adapter = self._get_adapter(self._config.account(account).provider)
@@ -343,11 +347,13 @@ class Core:
             html_body=html_body,
             in_reply_to=in_reply_to,
             references=references or [],
+            attachments=attachments or [],
         )
         self._audit(account, "draft", {
             "to": to,
             "cc": cc or [],
             "subject": subject,
+            "attachments": len(attachments) if attachments else 0,
             "draft_id": result.get("id"),
         })
         return result
@@ -374,6 +380,79 @@ class Core:
         """List folders/labels for an account."""
         adapter = self._get_adapter(self._config.account(account).provider)
         return adapter.folders(account)
+
+    def create_folder(self, account: str, folder_name: str) -> dict[str, object]:
+        """Create a new folder."""
+        adapter = self._get_adapter(self._config.account(account).provider)
+        result = adapter.create_folder(account, folder_name)
+        self._audit(account, "create_folder", {"folder": folder_name})
+        return result
+
+    def delete_folder(self, account: str, folder_name: str) -> dict[str, object]:
+        """Delete a folder."""
+        adapter = self._get_adapter(self._config.account(account).provider)
+        result = adapter.delete_folder(account, folder_name)
+        self._audit(account, "delete_folder", {"folder": folder_name})
+        return result
+
+    def rename_folder(self, account: str, old_name: str, new_name: str) -> dict[str, object]:
+        """Rename a folder."""
+        adapter = self._get_adapter(self._config.account(account).provider)
+        result = adapter.rename_folder(account, old_name, new_name)
+        self._audit(account, "rename_folder", {"old_name": old_name, "new_name": new_name})
+        return result
+
+    def folder_status(self, account: str, folder_name: str) -> dict[str, object]:
+        """Get folder status (message counts, unseen, etc.)."""
+        adapter = self._get_adapter(self._config.account(account).provider)
+        return adapter.folder_status(account, folder_name)
+
+    def folder_statuses(self, account: str) -> list[dict[str, object]]:
+        """Get status for all folders."""
+        adapter = self._get_adapter(self._config.account(account).provider)
+        return adapter.folder_statuses(account)
+
+    def special_use_folders(self, account: str) -> dict[str, str]:
+        """Detect special-use folders (Inbox, Sent, Drafts, Trash, Junk, Archive)."""
+        adapter = self._get_adapter(self._config.account(account).provider)
+        return adapter.get_special_use_folders(account)
+
+    def set_message_flags(self, account: str, message_ids: list[str], add_flags: list[str] = None, remove_flags: list[str] = None) -> dict[str, object]:
+        """Add or remove flags from messages."""
+        adapter = self._get_adapter(self._config.account(account).provider)
+        result = adapter.set_message_flags(account, message_ids, add_flags, remove_flags)
+        self._audit(account, "set_flags", {"message_ids": message_ids, "add": add_flags, "remove": remove_flags})
+        return result
+
+    def mark_read(self, account: str, message_ids: list[str]) -> dict[str, object]:
+        """Mark messages as read (add \Seen flag)."""
+        return self.set_message_flags(account, message_ids, add_flags=['\Seen'])
+
+    def mark_unread(self, account: str, message_ids: list[str]) -> dict[str, object]:
+        """Mark messages as unread (remove \Seen flag)."""
+        return self.set_message_flags(account, message_ids, remove_flags=['\Seen'])
+
+    def flag_messages(self, account: str, message_ids: list[str]) -> dict[str, object]:
+        """Flag messages (add \Flagged flag)."""
+        return self.set_message_flags(account, message_ids, add_flags=['\Flagged'])
+
+    def unflag_messages(self, account: str, message_ids: list[str]) -> dict[str, object]:
+        """Unflag messages (remove \Flagged flag)."""
+        return self.set_message_flags(account, message_ids, remove_flags=['\Flagged'])
+
+    def batch_move(self, account: str, message_ids: list[str], destination: str) -> dict[str, object]:
+        """Move multiple messages to a folder."""
+        adapter = self._get_adapter(self._config.account(account).provider)
+        result = adapter.batch_move(account, message_ids, destination)
+        self._audit(account, "batch_move", {"message_ids": message_ids, "destination": destination})
+        return result
+
+    def batch_delete(self, account: str, message_ids: list[str]) -> dict[str, object]:
+        """Move multiple messages to Trash."""
+        adapter = self._get_adapter(self._config.account(account).provider)
+        result = adapter.batch_delete(account, message_ids)
+        self._audit(account, "batch_delete", {"message_ids": message_ids})
+        return result
 
 
 def _match_glob(pattern: str, value: str) -> bool:
