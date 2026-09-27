@@ -353,7 +353,12 @@ def _generate_and_save_tokens(config_file: Path | None = None):
     from .store import CredentialStore, state_path
     import secrets
     
-    config = load_config(config_file)
+    try:
+        config = load_config(config_file)
+    except ConfigError:
+        # No config exists yet (e.g., in test environment), skip token generation
+        return
+    
     store = CredentialStore(state_path())
     data = store.load()
     auth = data.get("auth", {})
