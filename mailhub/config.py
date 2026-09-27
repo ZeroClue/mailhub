@@ -145,25 +145,45 @@ def load_config(path: Path | None = None) -> Config:
 
 CONFIG_TEMPLATE = """# Mailhub account registry.
 #
+# Accounts are defined under [accounts.<alias>]
+# Provider-specific settings go in [provider] sections (gmail, graph, imap, etc.)
+#
+# Example Gmail account:
 # [accounts.personal]
 # provider = "gmail"
 # capabilities = ["mail", "calendar", "contacts"]
 # client_id = "personal-gcp-project-id"
 # client_secret = "personal-gcp-secret"
 #
+# Example Microsoft Graph account:
 # [accounts.work]
 # provider = "graph"
 # capabilities = ["mail", "calendar", "contacts", "tasks"]
 # client_id = "work-entra-app-id"
 # client_secret = "work-entra-secret"
 #
+# Example IMAP account (see IMAP section below for all options):
 # [accounts.imap_mail]
 # provider = "imap"
 # capabilities = ["mail"]
 # email = "user@example.com"
 # client_id = "user@example.com"
 # client_secret = "app-password"
+# imap_host = "imap.example.com"
+# imap_port = 993
+# imap_username = "user@example.com"
+# imap_password = "your-password"
+# imap_use_ssl = true
+# imap_use_starttls = false
+# smtp_host = "smtp.example.com"
+# smtp_port = 587
+# smtp_username = "user@example.com"
+# smtp_password = "your-password"
+# smtp_use_ssl = false
+# smtp_use_starttls = true
+# auth_method = "plain"  # plain, app_password, oauth2
 #
+# Shared OAuth credentials (used as fallback for accounts without per-account credentials):
 # [gmail]
 # client_id = "shared-gcp-project-id"
 # client_secret = "shared-gcp-secret"
@@ -172,6 +192,7 @@ CONFIG_TEMPLATE = """# Mailhub account registry.
 # client_id = "shared-entra-app-id"
 # client_secret = "shared-entra-secret"
 #
+# IMAP/SMTP global defaults (can be overridden per-account):
 # [imap]
 # host = "imap.example.com"
 # port = 993
