@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -131,7 +130,7 @@ class GraphAdapter:
                         continue
                 raise
 
-            except httpx.RequestError as e:
+            except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
                     delay = retry_policy.base_delay * (2 ** attempt)
                     delay = min(delay, retry_policy.max_delay)
@@ -260,7 +259,7 @@ class GraphAdapter:
         # Graph requires MIME as base64 in "message" property
         raw = base64.b64encode(mime_msg.as_bytes()).decode("ascii")
 
-        response = self._request(
+        self._request(
             "POST",
             f"{GRAPH_BASE}/sendMail",
             alias,

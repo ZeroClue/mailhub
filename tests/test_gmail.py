@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -213,7 +212,6 @@ class TestGmailAdapter:
         call_count = [0]
         
         # Create a mock client that returns 429 once then success
-        original_client = gmail_adapter._get_client()
         mock_client = MagicMock()
         
         def mock_request(method, url, **kwargs):
@@ -241,7 +239,6 @@ class TestGmailAdapter:
         """Test token refresh on 401 by patching the internal client."""
         call_count = [0]
         
-        original_client = gmail_adapter._get_client()
         mock_client = MagicMock()
         
         def mock_request(method, url, **kwargs):

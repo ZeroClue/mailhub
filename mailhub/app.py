@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
-import hmac
 import ipaddress
 import secrets
 import signal
-import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from .config import ConfigError, load_config
-from .core import Core, CoreError, SendDenied
+from .core import Core, CoreError
 
 
 # Global core instance
@@ -506,10 +504,8 @@ async def verify_token(
     x_api_key: Optional[str] = Header(None),
 ) -> str:
     """Verify bearer token or API key."""
-    from .config import load_config
     from .store import CredentialStore, state_path
     
-    config = load_config()
     store = CredentialStore(state_path())
     data = store.load()
     auth = data.get("auth", {})
@@ -534,9 +530,7 @@ async def verify_token(
 def run_server(config_file: Path | None = None, host: str = "127.0.0.1", port: int = 8787):
     """Run the FastAPI server with uvicorn."""
     import uvicorn
-    import signal
     import asyncio
-    import secrets
     
     # Validate host is loopback
     try:
@@ -581,12 +575,10 @@ def run_server(config_file: Path | None = None, host: str = "127.0.0.1", port: i
 
 def _generate_and_save_tokens(config_file: Path | None = None):
     """Generate and save ro_token and full_token to credential store."""
-    from .config import load_config
     from .store import CredentialStore, state_path
-    import secrets
     
     try:
-        config = load_config(config_file)
+        load_config(config_file)
     except ConfigError:
         # No config exists yet (e.g., in test environment), skip token generation
         return

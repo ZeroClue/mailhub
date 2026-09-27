@@ -7,14 +7,12 @@ import pytest
 from mailhub.oauth import (
     PKCE,
     AuthState,
-    Provider,
     ReauthNeeded,
     auth_url,
     check_state,
     exchange,
     generate_pkce,
     parse_redirect,
-    refresh,
 )
 
 

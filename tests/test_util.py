@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from mailhub.util import build_mime, html_to_text, split_addrs
 

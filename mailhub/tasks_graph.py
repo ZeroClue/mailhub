@@ -8,10 +8,8 @@ from typing import Any
 import httpx
 
 from .tasks import (
-    ListNotFound,
     Task,
     TaskList,
-    TaskNotFound,
     TaskPriority,
     TaskStatus,
 )
@@ -120,7 +118,7 @@ class GraphTasksAdapter:
                         continue
                 raise
 
-            except httpx.RequestError as e:
+            except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
                     delay = retry_policy.base_delay * (2 ** attempt)
                     delay = min(delay, retry_policy.max_delay)
@@ -210,7 +208,7 @@ class GraphTasksAdapter:
         """List task lists."""
         response = self._request("GET", f"{GRAPH_BASE}/todo/lists", alias)
         data = response.json()
-        return [self._parse_list(l) for l in data.get("value", [])]
+        return [self._parse_list(item) for item in data.get("value", [])]
 
     def tasks(
         self,

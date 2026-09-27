@@ -3,10 +3,6 @@
 from __future__ import annotations
 
 import base64
-import email
-import email.message
-import json
-import mimetypes
 from dataclasses import dataclass
 from typing import Any
 
@@ -134,7 +130,7 @@ class GmailAdapter:
                         continue
                 raise
 
-            except httpx.RequestError as e:
+            except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
                     delay = retry_policy.base_delay * (2 ** attempt)
                     delay = min(delay, retry_policy.max_delay)

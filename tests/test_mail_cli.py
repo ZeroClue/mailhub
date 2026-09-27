@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -13,7 +12,6 @@ from mailhub.mail_cli import (
     MailCLIError,
     _validate_loopback_url,
     _get_token,
-    _make_client,
     _handle_response,
     _output,
     cmd_accounts,

@@ -24,11 +24,9 @@ from .config import (
     remove_account,
     validate_config_structure,
     validate_provider_credentials,
-    PROVIDER_CAPABILITIES,
 )
 from .core import Core, CoreError
-from .mcp import run_stdio
-from .oauth import Provider, ReauthNeeded, auth_url, check_state, exchange, parse_redirect
+from .oauth import Provider, auth_url, check_state, exchange, parse_redirect
 from .store import CredentialStore, state_path
 
 

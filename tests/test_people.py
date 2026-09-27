@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mailhub.contacts import Contact, Email, Name, Phone
+from mailhub.contacts import Contact, Name
 from mailhub.core import Core, RetryPolicy
 from mailhub.people import GooglePeopleAdapter
 

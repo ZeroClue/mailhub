@@ -6,18 +6,15 @@ import json
 import os
 import re
 import time
-from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator, Literal
+from typing import Any
 
-import httpx
 
-from .config import Account, Config, ConfigError, load_config
+from .config import Config, load_config
 from .oauth import Provider, ReauthNeeded, refresh
-from .store import CredentialStore, StoreError
-from .util import split_addrs
+from .store import CredentialStore
 
 __all__ = ["Core", "CoreError", "SendDenied", "AuditEntry"]
 

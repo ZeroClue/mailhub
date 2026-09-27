@@ -145,7 +145,6 @@ def parse_config(data: dict[str, Any]) -> Config:
         if unsupported:
             items = ", ".join(sorted(unsupported))
             raise ConfigError(f"account {alias} provider {provider!r} does not support: {items}")
-        email = raw_account.get("email", "")
         accounts.append(Account(
             alias=alias,
             provider=provider,
@@ -430,7 +429,7 @@ def validate_config_structure(data: dict[str, Any]) -> list[str]:
                 if not provider_data.get("client_id"):
                     warnings.append(f"provider {provider} missing client_id")
                 if provider == "gmail" and not provider_data.get("client_secret"):
-                    warnings.append(f"provider gmail missing client_secret")
+                    warnings.append("provider gmail missing client_secret")
     
     return warnings
 
@@ -448,6 +447,6 @@ def validate_provider_credentials(config: Config) -> list[str]:
         if not provider_cfg.get("client_id"):
             errors.append(f"provider {provider} missing client_id")
         if provider == "gmail" and not provider_cfg.get("client_secret"):
-            errors.append(f"provider gmail missing client_secret")
+            errors.append("provider gmail missing client_secret")
     
     return errors

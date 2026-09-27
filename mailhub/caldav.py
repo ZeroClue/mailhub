@@ -11,8 +11,6 @@ from .calendar import (
     Calendar,
     CalendarNotFound,
     Event,
-    EventStatus,
-    FreeBusyPeriod,
     FreeBusyRequest,
     FreeBusyResponse,
 )
@@ -98,7 +96,7 @@ class CalDAVAdapter:
         # PROPFIND on principal URL to find calendar homes
         # This is simplified - real implementation needs principal discovery
         principal_url = f"{self._base_url.rstrip('/')}/.well-known/caldav"
-        response = self._request("PROPFIND", principal_url)
+        self._request("PROPFIND", principal_url)
         # Parse response for calendar URLs
         # For now, return empty list
         return []

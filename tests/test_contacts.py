@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date
 
-import pytest
 
 from mailhub.contacts import (
     Address,
@@ -14,7 +13,6 @@ from mailhub.contacts import (
     Name,
     Organization,
     Phone,
-    Photo,
     ContactSource,
 )
 

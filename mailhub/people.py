@@ -11,7 +11,6 @@ from .contacts import (
     Address,
     Contact,
     ContactGroup,
-    ContactNotFound,
     Email,
     Name,
     Organization,
@@ -124,7 +123,7 @@ class GooglePeopleAdapter:
                         continue
                 raise
 
-            except httpx.RequestError as e:
+            except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
                     delay = retry_policy.base_delay * (2 ** attempt)
                     delay = min(delay, retry_policy.max_delay)

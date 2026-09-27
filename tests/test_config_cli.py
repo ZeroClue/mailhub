@@ -1,12 +1,9 @@
 """Tests for mailhub config subcommands."""
 
-import json
-from unittest.mock import patch, MagicMock
 
 import pytest
 
 from mailhub.cli import main
-from mailhub.config import Config, ConfigError, parse_config, save_config
 
 
 @pytest.fixture
@@ -269,7 +266,7 @@ class TestConfigRemoveAccount:
         assert main(["config", "remove-account", "nonexistent", "--config", str(config)]) == 1
 
         err = capsys.readouterr().err
-        assert f"account nonexistent not found" in err
+        assert "account nonexistent not found" in err
 
 
 class TestConfigSetupProviders:
@@ -305,7 +302,6 @@ class TestConfigAtomicWrites:
         config = tmp_path / "config.toml"
         config.write_text("[accounts]\n")
         config.chmod(0o600)
-        original_inode = config.stat().st_ino
 
         from mailhub.config import add_account, load_config
         cfg = load_config(config)

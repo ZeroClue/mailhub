@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mailhub.contacts import Contact, Email
+from mailhub.contacts import Contact
 from mailhub.core import Core, RetryPolicy
 from mailhub.people_graph import GraphPeopleAdapter
 
@@ -88,7 +88,7 @@ class TestGraphPeopleAdapter:
             assert result.names[0].given == "Jane"
 
     def test_create_contact_requires_confirm(self, graph_people_adapter, mock_core):
-        from mailhub.contacts import Contact, Name
+        from mailhub.contacts import Name
         contact = Contact(id="", names=(Name(given="Test"),))
         
         with pytest.raises(ValueError, match="confirm=True"):

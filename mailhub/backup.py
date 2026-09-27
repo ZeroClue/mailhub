@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import stat
 import tarfile
@@ -11,7 +10,6 @@ import tempfile
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from .config import config_path, load_config
 from .store import CredentialStore, state_path

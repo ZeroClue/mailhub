@@ -19,7 +19,7 @@ from mailhub.backup import (
     restore_state,
 )
 from mailhub.config import initialize_config
-from mailhub.store import CredentialStore, state_path
+from mailhub.store import CredentialStore
 
 
 def test_backup_config_copies_file(tmp_path: Path) -> None:

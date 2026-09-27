@@ -11,7 +11,6 @@ from .calendar import (
     Attendee,
     AttendeeStatus,
     Calendar,
-    CalendarNotFound,
     Event,
     EventStatus,
     FreeBusyPeriod,
@@ -123,7 +122,7 @@ class GraphCalendarAdapter:
                         continue
                 raise
 
-            except httpx.RequestError as e:
+            except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
                     delay = retry_policy.base_delay * (2 ** attempt)
                     delay = min(delay, retry_policy.max_delay)

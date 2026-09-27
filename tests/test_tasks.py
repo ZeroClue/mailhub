@@ -4,13 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
 
 from mailhub.tasks import (
-    ListNotFound,
     Task,
     TaskList,
-    TaskNotFound,
     TaskPriority,
     TaskStatus,
 )

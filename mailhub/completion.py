@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import Sequence
 
 
 # All mailhub subcommands
@@ -219,7 +218,6 @@ def generate_completion(shell: str) -> str:
 
 
 def main() -> int:
-    import argparse
     parser = argparse.ArgumentParser(description="Generate shell completions for mailhub")
     parser.add_argument("shell", choices=("bash", "zsh", "fish"), help="Target shell")
     args = parser.parse_args()

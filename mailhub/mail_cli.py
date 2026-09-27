@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -593,7 +592,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"mail: cannot connect to {args.url}; is 'mailhub serve' running?", file=sys.stderr)
         return 1
     except httpx.TimeoutException:
-        print(f"mail: request timed out", file=sys.stderr)
+        print("mail: request timed out", file=sys.stderr)
         return 1
     except Exception as e:
         print(f"mail: unexpected error: {e}", file=sys.stderr)

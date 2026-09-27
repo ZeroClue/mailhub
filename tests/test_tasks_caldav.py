@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from mailhub.tasks_caldav import CalDAVTasksAdapter
-from mailhub.tasks import TaskNotFound, ListNotFound
+from mailhub.tasks import TaskNotFound
 
 
 class TestCalDAVTasksAdapter:

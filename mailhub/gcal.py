@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from typing import Any
 
@@ -12,7 +11,6 @@ from .calendar import (
     Attendee,
     AttendeeStatus,
     Calendar,
-    CalendarNotFound,
     Event,
     EventStatus,
     FreeBusyPeriod,
@@ -124,7 +122,7 @@ class GoogleCalendarAdapter:
                         continue
                 raise
 
-            except httpx.RequestError as e:
+            except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
                     delay = retry_policy.base_delay * (2 ** attempt)
                     delay = min(delay, retry_policy.max_delay)

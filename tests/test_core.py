@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import json
-import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from mailhub.config import Account, Config
 from mailhub.core import (
     Core,
     CoreError,
@@ -18,8 +15,6 @@ from mailhub.core import (
     SendPolicy,
     _state_path,
 )
-from mailhub.oauth import ReauthNeeded
-from mailhub.store import CredentialStore
 
 
 class TestStatePath:

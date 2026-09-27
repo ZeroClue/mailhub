@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mailhub.calendar import Calendar, Event, EventStatus, FreeBusyPeriod, FreeBusyRequest
+from mailhub.calendar import Event, FreeBusyRequest
 from mailhub.core import Core, RetryPolicy
 from mailhub.gcal import GoogleCalendarAdapter
 

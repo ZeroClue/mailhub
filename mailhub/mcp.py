@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, Optional
 import json
 
 from mcp.server.fastmcp import FastMCP as _FastMCP
 from mcp.types import Resource, ResourceTemplate
 
 from . import __version__
-from .config import ConfigError, load_config
-from .core import Core, CoreError, SendDenied
 
 
 READ_ONLY_TOOL_NAMES = ("mailhub_status",)
@@ -497,7 +493,6 @@ def create_server(*, mode="ro", config_file=None):
 
     _core_holder["core"] = core
 
-    from mcp.server.fastmcp import FastMCP
     # Create server with name, version, and instructions for proper initialize response
     server = _FastMCP(
         name="mailhub",

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mailhub.tasks import Task, TaskList, TaskNotFound, ListNotFound, TaskPriority, TaskStatus
+from mailhub.tasks import Task, TaskPriority, TaskStatus
 from mailhub.core import Core, RetryPolicy
 from mailhub.tasks_graph import GraphTasksAdapter
 
