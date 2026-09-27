@@ -66,6 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     auth.add_argument("alias", help="account alias from config")
     auth.add_argument("--code", help="authorization code or redirect URL from browser")
     auth.add_argument("--config", type=_path, help="configuration file path")
+    auth.add_argument("--state", type=_path, help="credential state file path")
 
     status = subcommands.add_parser("status", help="show configured accounts without contacting providers")
     status.add_argument("--config", type=_path, help="configuration file path")
