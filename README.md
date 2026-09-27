@@ -33,10 +33,14 @@ mailhub config add-account --alias work --provider graph --capabilities mail --e
 mailhub auth gmail me --code '<pasted-redirect-url>'
 mailhub auth graph work --code '<pasted-redirect-url>'
 
+# For IMAP/SMTP accounts, auth prompts for credentials and runs setup wizard
+mailhub config add-account --alias myimap --provider imap --capabilities mail --email me@example.com
+mailhub auth imap myimap
+
 # Verify health
 mailhub doctor
 
-# Start REST server (localhost only)
+# Start REST server (localhost only) - auto-generates auth tokens
 mailhub serve
 
 # Or run MCP server (read-only by default)
@@ -144,8 +148,9 @@ host = "127.0.0.1"
 port = 8787
 
 [auth]
-ro_token = "..."      # read-only token
-full_token = "..."    # full-access token
+# ro_token and full_token are auto-generated on `mailhub serve` startup
+# ro_token = "..."      # read-only token (auto-generated)
+# full_token = "..."    # full-access token (auto-generated)
 
 [send]
 allowlist = ["*@example.com"]  # glob patterns
@@ -173,6 +178,7 @@ capabilities = ["mail", "calendar", "contacts", "tasks"]
 - No hard-delete — only trash/cancel
 - Mutations require `confirm=true` + recipient allowlist
 - Audit log (`~/.local/state/mailhub/audit.jsonl`) never records tokens/bodies
+- Auth tokens (ro_token, full_token) auto-generated on `mailhub serve` startup
 - Credentials stored with 0600 permissions, atomic writes, fcntl lock
 - OAuth PKCE with random state
 - Message bodies treated as untrusted input

@@ -71,14 +71,14 @@ def create_app(config_file: Path | None = None) -> FastAPI:
     @app.get("/health")
     async def health():
         """Health check endpoint - returns basic status."""
-        return {"status": "ok", "version": "0.1.10"}
+        return {"status": "ok", "version": "0.1.11"}
 
     @app.get("/health/detailed")
     async def health_detailed():
         """Detailed health check - includes adapter status."""
         core = get_core()
         if core is None:
-            return {"status": "degraded", "version": "0.1.10", "error": "Core not initialized"}
+            return {"status": "degraded", "version": "0.1.11", "error": "Core not initialized"}
         
         adapter_status = {}
         for name, adapter in core._adapters.items():
@@ -92,7 +92,7 @@ def create_app(config_file: Path | None = None) -> FastAPI:
         all_ok = all(s.get("status") == "ok" for s in adapter_status.values())
         return {
             "status": "ok" if all_ok else "degraded",
-            "version": "0.1.10",
+            "version": "0.1.11",
             "adapters": adapter_status
         }
 
@@ -102,14 +102,14 @@ def create_app(config_file: Path | None = None) -> FastAPI:
         if core is None:
             raise HTTPException(503, "Core not initialized")
         return [
-            AccountStatus(
-                alias=alias,
-                provider=acc.provider,
-                capabilities=acc.capabilities,
-                email=acc.email,
-            )
-            for alias, acc in core.config.accounts.items()
-        ]
+        AccountStatus(
+            alias=acc.alias,
+            provider=acc.provider,
+            capabilities=acc.capabilities,
+            email=acc.email,
+        )
+        for acc in core.config.accounts
+    ]
 
     @app.get("/accounts/{alias}/folders")
     async def list_folders(alias: str, scope: str = Depends(verify_token)):
@@ -275,9 +275,12 @@ async def verify_token(
 ) -> str:
     """Verify bearer token or API key."""
     from .config import load_config
+    from .store import CredentialStore, state_path
     
     config = load_config()
-    auth = config.auth
+    store = CredentialStore(state_path())
+    data = store.load()
+    auth = data.get("auth", {})
     
     token = None
     if authorization and authorization.startswith("Bearer "):
@@ -288,9 +291,9 @@ async def verify_token(
     if not token:
         raise HTTPException(401, "Missing authorization")
     
-    if token == auth.full_token:
+    if token == auth.get("full_token"):
         return "full"
-    elif token == auth.ro_token:
+    elif token == auth.get("ro_token"):
         return "ro"
     else:
         raise HTTPException(401, "Invalid token")
@@ -301,12 +304,16 @@ def run_server(config_file: Path | None = None, host: str = "127.0.0.1", port: i
     import uvicorn
     import signal
     import asyncio
+    import secrets
     
     # Validate host is loopback
     try:
         _validate_host(host)
     except ValueError as e:
         raise SystemExit(f"mailhub: {e}")
+    
+    # Generate and save tokens before starting server
+    _generate_and_save_tokens(config_file)
     
     app = create_app(config_file)
     
@@ -338,6 +345,28 @@ def run_server(config_file: Path | None = None, host: str = "127.0.0.1", port: i
         await serve_task
     
     asyncio.run(run_with_shutdown())
+
+
+def _generate_and_save_tokens(config_file: Path | None = None):
+    """Generate and save ro_token and full_token to credential store."""
+    from .config import load_config
+    from .store import CredentialStore, state_path
+    import secrets
+    
+    config = load_config(config_file)
+    store = CredentialStore(state_path())
+    data = store.load()
+    auth = data.get("auth", {})
+    
+    # Generate tokens if they don't exist
+    if not auth.get("ro_token"):
+        auth["ro_token"] = "ro_" + secrets.token_urlsafe(32)
+    if not auth.get("full_token"):
+        auth["full_token"] = "full_" + secrets.token_urlsafe(32)
+    
+    data["auth"] = auth
+    store.save(data)
+    print("Generated authentication tokens")
 
 
 if __name__ == "__main__":
