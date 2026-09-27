@@ -308,6 +308,7 @@ class Core:
             html_body=html_body,
             in_reply_to=in_reply_to,
             references=references or [],
+            confirm=confirm,
         )
         self._audit(account, "send", {
             "to": to,

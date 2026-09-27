@@ -209,7 +209,7 @@ class TestCommands:
         
         assert result == 0
         mock_client.get.assert_called_once_with(
-            "/accounts/personal/messages",
+            "/accounts/personal/search",
             params={"q": "test", "max_results": 25, "page_token": "abc"}
         )
     
@@ -279,7 +279,7 @@ class TestCommands:
         assert result == 0
         mock_client.post.assert_called_once()
         call_args = mock_client.post.call_args
-        assert call_args.args[0] == "/accounts/personal/send"
+        assert call_args.args[0] == "/accounts/personal/messages"
         payload = call_args.kwargs["json"]
         assert payload["to"] == ["test@example.com"]
         assert payload["cc"] == ["cc@example.com"]
@@ -323,7 +323,7 @@ class TestCommands:
         assert result == 0
         mock_client.post.assert_called_once()
         call_args = mock_client.post.call_args
-        assert call_args.args[0] == "/accounts/personal/draft"
+        assert call_args.args[0] == "/accounts/personal/drafts"
         payload = call_args.kwargs["json"]
         assert payload["to"] == ["test@example.com"]
         assert "confirm" not in payload  # draft doesn't have confirm

@@ -1,3 +1,16 @@
+## [0.1.16] - 2026-09-27
+
+### Fixed
+- **IMAP folder listing** — Fixed folder name parsing regex to handle both quoted and unquoted folder names in IMAP LIST responses
+- **IMAP get/message operations** — Fixed `get`, `move`, `trash` methods to search across common folders (INBOX, Sent, Drafts, Archive, Junk, Trash) since message folder is unknown
+- **IMAP send** — Fixed missing `confirm` parameter in adapter call and added `timeout` field to IMAPConfig
+- **Send policy** — Added `send_policy` configuration with `allow_anywhere` and `allowlist` support, parsed from config.toml and passed to Core
+- **CLI endpoints** — Fixed CLI to use correct API endpoints: `/search` (was `/messages`), `/messages` (was `/send`), `/drafts` (was `/draft`)
+- **Config persistence** — IMAP/SMTP settings now properly saved to config.toml via Account serialization
+
+### Changed
+- **Version bump to 0.1.16** — All version references synchronized across pyproject.toml, mailhub/__init__.py, mailhub/app.py
+
 ## [0.1.15] - 2026-09-27
 
 ### Fixed

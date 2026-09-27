@@ -46,7 +46,8 @@ async def lifespan(app: FastAPI):
     global _core
     try:
         from .config import load_config
-        _core = Core(config=load_config())
+        config = load_config()
+        _core = Core(config=config, send_policy=config.send_policy)
     except ConfigError:
         _core = None
     yield
@@ -64,21 +65,21 @@ def create_app(config_file: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="Mailhub",
         description="Local personal-operations hub for AI assistants",
-        version="0.1.15",
+        version="0.1.16",
         lifespan=lifespan,
     )
 
     @app.get("/health")
     async def health():
         """Health check endpoint - returns basic status."""
-        return {"status": "ok", "version": "0.1.15"}
+        return {"status": "ok", "version": "0.1.16"}
 
     @app.get("/health/detailed")
     async def health_detailed():
         """Detailed health check - includes adapter status."""
         core = get_core()
         if core is None:
-            return {"status": "degraded", "version": "0.1.15", "error": "Core not initialized"}
+            return {"status": "degraded", "version": "0.1.16", "error": "Core not initialized"}
         
         adapter_status = {}
         for name, adapter in core._adapters.items():
@@ -92,7 +93,7 @@ def create_app(config_file: Path | None = None) -> FastAPI:
         all_ok = all(s.get("status") == "ok" for s in adapter_status.values())
         return {
             "status": "ok" if all_ok else "degraded",
-            "version": "0.1.15",
+            "version": "0.1.16",
             "adapters": adapter_status
         }
 

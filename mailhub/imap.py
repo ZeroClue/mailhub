@@ -25,6 +25,7 @@ class IMAPConfig:
     password: str = ""  # can be app password or regular password
     use_ssl: bool = True
     use_starttls: bool = False
+    timeout: int = 30
     
     # SMTP settings (optional, defaults to IMAP settings)
     smtp_host: Optional[str] = None
@@ -298,11 +299,24 @@ class IMAPAdapter:
         config.timeout = 30
         conn = self._connect_imap(config)
         try:
-            status, data = conn.search(None, f'HEADER Message-ID "{message_id}"')
-            if status != 'OK' or not data[0]:
+            # Search across common folders since we don't know which folder the message is in
+            folders_to_search = ['INBOX', 'Sent', 'Drafts', 'Archive', 'Junk', 'Trash']
+            msg_num = None
+            for folder in folders_to_search:
+                try:
+                    status, _ = conn.select(folder, readonly=True)
+                    if status != 'OK':
+                        continue
+                    status, data = conn.search(None, f'HEADER Message-ID "{message_id}"')
+                    if status == 'OK' and data[0]:
+                        msg_num = data[0].split()[0]
+                        break
+                except Exception:
+                    continue
+            
+            if not msg_num:
                 raise CoreError(f"Message not found: {message_id}")
             
-            msg_num = data[0].split()[0]
             status, data = conn.fetch(msg_num, '(RFC822)')
             if status != 'OK' or not data:
                 raise CoreError(f"Failed to fetch message: {message_id}")
@@ -396,11 +410,23 @@ class IMAPAdapter:
         config.timeout = 30
         conn = self._connect_imap(config)
         try:
-            status, data = conn.search(None, f'HEADER Message-ID "{message_id}"')
-            if status != 'OK' or not data[0]:
-                raise CoreError(f"Message not found: {message_id}")
+            # Search across common folders since we don't know which folder the message is in
+            folders_to_search = ['INBOX', 'Sent', 'Drafts', 'Archive', 'Junk', 'Trash']
+            msg_num = None
+            for folder in folders_to_search:
+                try:
+                    status, _ = conn.select(folder, readonly=False)
+                    if status != 'OK':
+                        continue
+                    status, data = conn.search(None, f'HEADER Message-ID "{message_id}"')
+                    if status == 'OK' and data[0]:
+                        msg_num = data[0].split()[0]
+                        break
+                except Exception:
+                    continue
             
-            msg_num = data[0].split()[0]
+            if not msg_num:
+                raise CoreError(f"Message not found: {message_id}")
             conn.copy(msg_num, destination)
             conn.store(msg_num, '+FLAGS', '\\Deleted')
             conn.expunge()

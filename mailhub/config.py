@@ -45,10 +45,18 @@ class Account:
 
 
 @dataclass(frozen=True)
+class SendPolicy:
+    """Send policy configuration."""
+    allowlist: tuple[str, ...] = ()
+    allow_anywhere: bool = False
+
+
+@dataclass(frozen=True)
 class Config:
     """Validated account registry."""
 
     accounts: tuple[Account, ...]
+    send_policy: SendPolicy = field(default_factory=SendPolicy)
     _raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
     def account(self, alias: str) -> Account:
@@ -102,6 +110,13 @@ def _require_string(value: object, name: str) -> str:
 
 def parse_config(data: dict[str, Any]) -> Config:
     """Validate decoded TOML data and return its account registry."""
+    # Parse send_policy
+    send_policy_raw = data.get("send_policy", {})
+    send_policy = SendPolicy(
+        allowlist=tuple(send_policy_raw.get("allowlist", [])),
+        allow_anywhere=send_policy_raw.get("allow_anywhere", False),
+    )
+    
     raw_accounts = data.get("accounts", {})
     if not isinstance(raw_accounts, dict):
         raise ConfigError("accounts must be a TOML table")
@@ -148,7 +163,7 @@ def parse_config(data: dict[str, Any]) -> Config:
         ))
     
     # Create config with raw data
-    config = Config(accounts=tuple(accounts), _raw=data)
+    config = Config(accounts=tuple(accounts), send_policy=send_policy, _raw=data)
     return config
 
 

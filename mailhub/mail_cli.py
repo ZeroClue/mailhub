@@ -193,7 +193,7 @@ def cmd_search(args: argparse.Namespace, config_file: Path | None, state_file: P
         params = {"q": args.query, "max_results": args.max_results}
         if args.page_token:
             params["page_token"] = args.page_token
-        response = client.get(f"/accounts/{args.account}/messages", params=params)
+        response = client.get(f"/accounts/{args.account}/search", params=params)
         data = _handle_response(response)
         _output(data, args.json)
         return 0
@@ -258,7 +258,7 @@ def cmd_send(args: argparse.Namespace, config_file: Path | None, state_file: Pat
             "references": args.references or [],
             "confirm": True,
         }
-        response = client.post(f"/accounts/{args.account}/send", json=payload)
+        response = client.post(f"/accounts/{args.account}/messages", json=payload)
         data = _handle_response(response)
         _output(data, args.json)
         return 0
@@ -305,7 +305,7 @@ def cmd_draft(args: argparse.Namespace, config_file: Path | None, state_file: Pa
             "in_reply_to": args.in_reply_to,
             "references": args.references or [],
         }
-        response = client.post(f"/accounts/{args.account}/draft", json=payload)
+        response = client.post(f"/accounts/{args.account}/drafts", json=payload)
         data = _handle_response(response)
         _output(data, args.json)
         return 0
