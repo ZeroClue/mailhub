@@ -202,12 +202,19 @@ class IMAPAdapter:
             if status != 'OK':
                 raise CoreError(f"Failed to list folders: {folders}")
             
+            # IMAP LIST response format: (flags) "delimiter" "name" or (flags) "delimiter" name
+            # name can be quoted or unquoted
+            folder_pattern = re.compile(
+                r'\([^)]*\)\s+"([^"]+)"\s+"([^"]+)"$|\([^)]*\)\s+"([^"]+)"\s+(\S+)$'
+            )
+            
             result = []
             for folder in folders:
                 folder = folder.decode('utf-8')
-                match = re.search(r'"([^"]*)"$', folder)
+                match = folder_pattern.search(folder)
                 if match:
-                    name = match.group(1)
+                    # Group 2 is quoted name, group 4 is unquoted name
+                    name = match.group(2) if match.group(2) else match.group(4)
                     result.append({'name': name, 'id': name})
             return result
         finally:

@@ -1,3 +1,8 @@
+## [0.1.15] - 2026-09-27
+
+### Fixed
+- **IMAP folder listing** — Fixed folder name parsing regex to handle both quoted and unquoted folder names in IMAP LIST responses. Previously only folders with special characters (quoted names) were shown.
+
 ## [0.1.14] - 2026-09-27
 
 ### Fixed
