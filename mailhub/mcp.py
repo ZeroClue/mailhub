@@ -279,6 +279,209 @@ def list_resource_templates() -> list[ResourceTemplate]:
     ]
 
 
+# --- Prompt functions ---
+
+def compose_email_prompt(
+    account: str,
+    to: str,
+    subject: str = "",
+    cc: str = "",
+    bcc: str = "",
+    body: str = "",
+    context: str = "",
+) -> str:
+    """Generate a draft email with the given parameters."""
+    c = get_core()
+    accounts = c.accounts_status()
+    account_names = [a["alias"] for a in accounts]
+    
+    if account not in account_names:
+        return f"Error: Account '{account}' not found. Available: {', '.join(account_names)}"
+    
+    prompt = f"""Compose an email:
+
+**Account:** {account}
+**To:** {to}
+**CC:** {cc or '(none)'}
+**BCC:** {bcc or '(none)'}
+**Subject:** {subject or '(no subject)'}
+
+**Context:** {context or 'New email'}
+
+**Body:**
+{body or '(write your message here)'}
+
+Use the mailhub_draft tool to save this as a draft, or mailhub_send with confirm=true to send."""
+    return prompt
+
+
+def search_messages_prompt(
+    account: str,
+    query: str = "",
+    folder: str = "INBOX",
+    max_results: int = 20,
+) -> str:
+    """Guided search for messages."""
+    c = get_core()
+    accounts = c.accounts_status()
+    account_names = [a["alias"] for a in accounts]
+    
+    if account not in account_names:
+        return f"Error: Account '{account}' not found. Available: {', '.join(account_names)}"
+    
+    # Get available folders for context
+    try:
+        folders = c.folders(account)
+        folder_names = [f["name"] for f in folders]
+    except Exception:
+        folder_names = []
+    
+    prompt = f"""Search messages in {account}:
+
+**Folder:** {folder} (or specify another: {', '.join(folder_names[:10])}{'...' if len(folder_names) > 10 else ''})
+**Query:** {query or '(empty = all messages)'}
+
+**Search syntax:**
+- `from:user@example.com` - Sender
+- `to:user@example.com` - Recipient  
+- `subject:text` - Subject line
+- `body:text` - Message body (default)
+- `before:YYYY-MM-DD` / `after:YYYY-MM-DD` - Date range
+- `is:read` / `is:unread` - Read status
+- `is:flagged` / `is:unflagged` - Flag status
+- `has:attachment` - Has attachments
+- `larger:N` / `smaller:N` - Size in bytes
+
+**Max results:** {max_results}
+
+Use mailhub_search to execute this search."""
+    return prompt
+
+
+def organize_inbox_prompt(
+    account: str,
+    rules: str = "",
+) -> str:
+    """Interactive inbox organization - move, archive, flag messages."""
+    c = get_core()
+    accounts = c.accounts_status()
+    account_names = [a["alias"] for a in accounts]
+    
+    if account not in account_names:
+        return f"Error: Account '{account}' not found. Available: {', '.join(account_names)}"
+    
+    try:
+        folders = c.folders(account)
+        folder_names = [f["name"] for f in folders]
+        special = c.special_use_folders(account)
+    except Exception:
+        folder_names = []
+        special = {}
+    
+    prompt = f"""Organize inbox for {account}:
+
+**Special folders detected:**
+- Inbox: {special.get('inbox', 'INBOX')}
+- Archive: {special.get('archive', 'Archive')}
+- Trash: {special.get('trash', 'Trash')}
+- Spam/Junk: {special.get('junk', 'Junk')}
+
+**Available folders:** {', '.join(folder_names[:15])}{'...' if len(folder_names) > 15 else ''}
+
+**Rules / Actions:**
+{rules or '(define your rules, e.g. "Move newsletters from from:newsletter@example.com to Archive", "Flag messages from boss@example.com")'}
+
+**Available actions:**
+- `mailhub_move` - Move single message
+- `mailhub_batch_move` - Move multiple messages
+- `mailhub_batch_delete` - Move multiple to Trash
+- `mailhub_flag` / `mailhub_unflag` - Flag/unflag
+- `mailhub_mark_read` / `mailhub_mark_unread` - Read status
+
+Describe what you want to organize and I'll generate the tool calls."""
+    return prompt
+
+
+def check_unread_prompt(
+    account: str,
+) -> str:
+    """Check unread message summary across folders."""
+    c = get_core()
+    accounts = c.accounts_status()
+    account_names = [a["alias"] for a in accounts]
+    
+    if account not in account_names:
+        return f"Error: Account '{account}' not found. Available: {', '.join(account_names)}"
+    
+    try:
+        statuses = c.folder_statuses(account)
+        special = c.special_use_folders(account)
+    except Exception:
+        statuses = []
+        special = {}
+    
+    # Build summary
+    total_unseen = 0
+    summary_lines = []
+    for s in statuses:
+        folder = s.get("folder", "Unknown")
+        messages = s.get("messages", 0)
+        unseen = s.get("unseen", 0)
+        total_unseen += unseen
+        if unseen > 0:
+            summary_lines.append(f"  {folder}: {messages} messages ({unseen} unread)")
+    
+    prompt = f"""Unread summary for {account}:
+
+**Total unread:** {total_unseen}
+
+**Folders with unread:**
+{chr(10).join(summary_lines) if summary_lines else '  (none)'}
+
+**Special folders:**
+- Inbox: {special.get('inbox', 'INBOX')}
+- Archive: {special.get('archive', 'Archive')}
+
+**Quick actions:**
+- Search unread: `mailhub_search(account="{account}", query="is:unread")`
+- Mark all read: `mailhub_mark_read(account="{account}", message_ids=[...])`
+- Move to archive: `mailhub_batch_move(account="{account}", message_ids=[...], destination="Archive")`"""
+    return prompt
+
+
+def create_draft_prompt(
+    account: str,
+    to: str,
+    subject: str = "",
+    cc: str = "",
+    bcc: str = "",
+    body: str = "",
+    attachments: str = "",
+) -> str:
+    """Create a draft with optional attachments."""
+    c = get_core()
+    accounts = c.accounts_status()
+    account_names = [a["alias"] for a in accounts]
+    
+    if account not in account_names:
+        return f"Error: Account '{account}' not found. Available: {', '.join(account_names)}"
+    
+    prompt = f"""Create a draft in {account}:
+
+**To:** {to}
+**CC:** {cc or '(none)'}
+**BCC:** {bcc or '(none)'}
+**Subject:** {subject or '(no subject)'}
+
+**Body:**
+{body or '(write your message here)'}
+
+**Attachments:** {attachments or '(none - specify file paths)'}
+
+Use mailhub_draft to save, or mailhub_send with confirm=true to send immediately."""
+    return prompt
+
+
 def create_server(*, mode="ro", config_file=None):
     """Create an MCP server with specified mode."""
     if mode not in ("ro", "full"):
@@ -492,6 +695,27 @@ def create_server(*, mode="ro", config_file=None):
             return json.dumps(result, indent=2)
         except Exception as e:
             raise ValueError(f"Failed to search: {e}")
+
+    # Register prompts
+    @server.prompt(name="compose_email", description="Compose a new email draft")
+    def compose_email(account: str, to: str, subject: str = "", cc: str = "", bcc: str = "", body: str = "", context: str = "") -> str:
+        return compose_email_prompt(account, to, subject, cc, bcc, body, context)
+
+    @server.prompt(name="search_messages", description="Search messages with guided syntax")
+    def search_messages(account: str, query: str = "", folder: str = "INBOX", max_results: int = 20) -> str:
+        return search_messages_prompt(account, query, folder, max_results)
+
+    @server.prompt(name="organize_inbox", description="Organize inbox with rules")
+    def organize_inbox(account: str, rules: str = "") -> str:
+        return organize_inbox_prompt(account, rules)
+
+    @server.prompt(name="check_unread", description="Check unread message summary")
+    def check_unread(account: str) -> str:
+        return check_unread_prompt(account)
+
+    @server.prompt(name="create_draft", description="Create a draft email")
+    def create_draft(account: str, to: str, subject: str = "", cc: str = "", bcc: str = "", body: str = "", attachments: str = "") -> str:
+        return create_draft_prompt(account, to, subject, cc, bcc, body, attachments)
 
     return server
 

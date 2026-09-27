@@ -1,3 +1,17 @@
+## [0.1.21] - 2026-09-27
+
+### Added
+- **MCP Prompts** — 5 common workflow prompts:
+  - `compose_email` — Compose email with to/cc/bcc/subject/body
+  - `search_messages` — Guided search with syntax help
+  - `organize_inbox` — Interactive inbox organization with rules
+  - `check_unread` — Unread summary across folders
+  - `create_draft` — Create draft with attachments
+- **Prompt decorators** — `@server.prompt` for dynamic prompt generation
+
+### Changed
+- **Version bump to 0.1.21** — All version references synchronized
+
 ## [0.1.20] - 2026-09-27
 
 ### Added
