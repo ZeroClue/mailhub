@@ -16,11 +16,7 @@ jobs:
           python-version: "3.11"
       - name: Install uv
         run: pip install uv
-      - name: Create venv and install linting tools
-        run: |
-          uv venv
-          uv pip install --system ruff bandit safety
-      - name: Sync deps
+      - name: Sync deps (includes ruff, bandit, safety)
         run: uv sync --extra dev
       - name: Run ruff lint
         run: uv run ruff check mailhub tests
