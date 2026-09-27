@@ -5,16 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2026-09-27
+
+### Added
+- **Complete IMAP wizard integration in `auth imap`** — Auto-detects missing IMAP/SMTP settings and runs interactive wizard
+- **Per-account IMAP/SMTP config** — Settings saved to config.toml with full field serialization
+- **Config template with IMAP comments** — Comprehensive commented examples in generated config.toml
+
+### Fixed
+- **IMAP config persistence** — Settings now properly saved to config.toml via Account serialization
+- **Account dataclass extended** — Added IMAP/SMTP fields (host, port, SSL, auth_method, etc.)
+
 ## [0.1.7] - 2026-09-27
 
 ### Added
-- **Integrated IMAP wizard in `auth imap`** — Auto-detects missing IMAP/SMTP settings and runs interactive wizard
-- **IMAP/SMTP config persistence** — Settings saved to config.toml with full field serialization
-- **Account dataclass extended** — Added IMAP/SMTP fields (host, port, SSL, auth_method, etc.)
-
-### Fixed
-- **IMAP auth** — Wizard now runs automatically when server settings missing
-- **Config persistence** — IMAP/SMTP settings now properly saved to config.toml
+- **Per-account OAuth credentials** — Gmail/Graph accounts can now use different Google Cloud projects or Entra ID app registrations
+- **Config fallback** — Provider-level `[gmail]`, `[graph]` sections serve as shared fallback
 
 ## [0.1.6] - 2026-09-27
 
