@@ -1,3 +1,16 @@
+## [0.1.18] - 2026-09-27
+
+### Added
+- **Advanced IMAP search** — Date ranges (`before`, `after`, `on`, `since`), size filters (`larger`, `smaller`), read status (`is:read`, `is:unread`, `is:flagged`, `is:unflagged`), attachment detection (`has:attachment`), CC/BCC fields
+- **Date normalization** — Accepts YYYY-MM-DD, DD-MMM-YYYY, DD/MM/YYYY formats
+- **Search fallback** — Graceful fallback for `HAS attachment` on servers without the extension
+
+### Fixed
+- **IMAP search error handling** — Catches unsupported search criteria exceptions
+
+### Changed
+- **Version bump to 0.1.18** — All version references synchronized
+
 ## [0.1.17] - 2026-09-27
 
 ### Added

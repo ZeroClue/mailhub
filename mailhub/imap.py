@@ -436,9 +436,26 @@ class IMAPAdapter:
             
             imap_query = self._parse_search_query(query)
             
-            status, data = conn.search(None, imap_query)
-            if status != 'OK':
-                raise CoreError(f"Search failed: {data}")
+            try:
+                status, data = conn.search(None, imap_query)
+                if status != 'OK':
+                    # Some IMAP servers don't support HAS attachment - fall back to body search
+                    if 'HAS attachment' in imap_query:
+                        fallback_query = imap_query.replace('HAS attachment', 'BODY "attachment"')
+                        status, data = conn.search(None, fallback_query)
+                        if status != 'OK':
+                            raise CoreError(f"Search failed: {data}")
+                    else:
+                        raise CoreError(f"Search failed: {data}")
+            except Exception as e:
+                # Handle IMAP error exceptions for unsupported search criteria
+                if 'HAS attachment' in imap_query and 'Unknown argument HAS' in str(e):
+                    fallback_query = imap_query.replace('HAS attachment', 'BODY "attachment"')
+                    status, data = conn.search(None, fallback_query)
+                    if status != 'OK':
+                        raise CoreError(f"Search failed: {data}")
+                else:
+                    raise CoreError(f"Search failed: {e}")
             
             msg_ids = data[0].split() if data[0] else []
             msg_ids = msg_ids[-max_results:]
@@ -461,8 +478,56 @@ class IMAPAdapter:
             except Exception:
                 pass
 
+    def _normalize_date(self, date_str: str) -> str:
+        """Normalize date to IMAP format (DD-MMM-YYYY).
+        
+        Accepts: YYYY-MM-DD, DD-MMM-YYYY, YYYY/MM/DD, DD/MM/YYYY
+        """
+        import re
+        from datetime import datetime
+        
+        # Try YYYY-MM-DD
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+            dt = datetime.strptime(date_str, '%Y-%m-%d')
+            return dt.strftime('%d-%b-%Y')
+        # Try YYYY/MM/DD
+        if re.match(r'^\d{4}/\d{2}/\d{2}$', date_str):
+            dt = datetime.strptime(date_str, '%Y/%m/%d')
+            return dt.strftime('%d-%b-%Y')
+        # Try DD-MM-YYYY
+        if re.match(r'^\d{2}-\d{2}-\d{4}$', date_str):
+            dt = datetime.strptime(date_str, '%d-%m-%Y')
+            return dt.strftime('%d-%b-%Y')
+        # Try DD/MM/YYYY
+        if re.match(r'^\d{2}/\d{2}/\d{4}$', date_str):
+            dt = datetime.strptime(date_str, '%d/%m/%Y')
+            return dt.strftime('%d-%b-%Y')
+        # Try DD-MMM-YYYY (already IMAP format)
+        if re.match(r'^\d{2}-[A-Za-z]{3}-\d{4}$', date_str):
+            return date_str.upper()
+        # Default: return as-is
+        return date_str
+
     def _parse_search_query(self, query: str) -> str:
-        """Convert simple query to IMAP SEARCH criteria."""
+        """Convert simple query to IMAP SEARCH criteria.
+        
+        Supported syntax:
+          from:user@example.com      - Sender address
+          to:user@example.com        - Recipient address
+          subject:text               - Subject line
+          body:text                  - Message body (default)
+          before:YYYY-MM-DD          - Before date (exclusive)
+          after:YYYY-MM-DD           - After date (inclusive)
+          on:YYYY-MM-DD              - On specific date
+          larger:N                   - Larger than N bytes
+          smaller:N                  - Smaller than N bytes
+          has:attachment             - Has attachments
+          has:flag                   - Has \Flagged flag
+          is:read / is:unread        - Read status
+          is:flagged / is:unflagged  - Flag status
+        
+        Date formats: YYYY-MM-DD, DD-MMM-YYYY (IMAP standard)
+        """
         if not query.strip():
             return 'ALL'
         
@@ -473,18 +538,50 @@ class IMAPAdapter:
             if ':' in token:
                 field, value = token.split(':', 1)
                 field = field.lower()
+                
+                # Handle is:read, is:unread, is:flagged, is:unflagged
+                if field == 'is':
+                    value_lower = value.lower()
+                    if value_lower in ('read', 'seen'):
+                        parts.append('SEEN')
+                    elif value_lower in ('unread', 'unseen'):
+                        parts.append('UNSEEN')
+                    elif value_lower in ('flagged', 'starred'):
+                        parts.append('FLAGGED')
+                    elif value_lower in ('unflagged', 'unstarred'):
+                        parts.append('UNFLAGGED')
+                    else:
+                        parts.append(f'BODY "{value}"')
+                    continue
+                
                 if field == 'from':
                     parts.append(f'FROM "{value}"')
                 elif field == 'to':
                     parts.append(f'TO "{value}"')
                 elif field == 'subject':
                     parts.append(f'SUBJECT "{value}"')
-                elif field == 'before':
-                    parts.append(f'BEFORE "{value}"')
-                elif field == 'after':
-                    parts.append(f'SINCE "{value}"')
-                elif field == 'hasattachment':
-                    parts.append('HAS attachment')
+                elif field == 'cc':
+                    parts.append(f'CC "{value}"')
+                elif field == 'bcc':
+                    parts.append(f'BCC "{value}"')
+                elif field in ('before', 'after', 'on', 'since'):
+                    # Normalize date to IMAP format (DD-MMM-YYYY)
+                    date_str = self._normalize_date(value)
+                    if field == 'before':
+                        parts.append(f'BEFORE "{date_str}"')
+                    elif field in ('after', 'since'):
+                        parts.append(f'SINCE "{date_str}"')
+                    elif field == 'on':
+                        parts.append(f'ON "{date_str}"')
+                elif field == 'larger':
+                    parts.append(f'LARGER {value}')
+                elif field == 'smaller':
+                    parts.append(f'SMALLER {value}')
+                elif field in ('has', 'hasattachment'):
+                    if value.lower() == 'attachment':
+                        parts.append('HAS attachment')
+                    else:
+                        parts.append(f'BODY "{value}"')
                 else:
                     parts.append(f'BODY "{value}"')
             else:
