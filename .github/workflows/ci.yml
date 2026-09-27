@@ -16,6 +16,8 @@ jobs:
           python-version: "3.11"
       - name: Install uv
         run: pip install uv
+      - name: Install linting tools
+        run: uv pip install ruff bandit safety
       - name: Sync deps
         run: uv sync --extra dev
       - name: Run ruff lint
@@ -24,12 +26,10 @@ jobs:
         run: uv run ruff format --check mailhub tests
       - name: Run security scan (bandit)
         run: |
-          uv pip install bandit
           uv run bandit -r mailhub -f json -o bandit.json || true
           cat bandit.json | jq '.results[] | select(.issue_severity == "HIGH" or .issue_severity == "MEDIUM")' || echo "No high/medium issues"
       - name: Run dependency audit (safety)
         run: |
-          uv pip install safety
           uv run safety check --json > safety.json || true
           cat safety.json | jq '.vulnerabilities[]' 2>/dev/null || echo "No vulnerabilities"
       - name: Run tests
