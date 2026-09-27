@@ -50,10 +50,13 @@ class CardDAVAdapter:
         content: str | None = None,
     ) -> httpx.Response:
         client = self._get_client()
-        request_headers = {"Depth": "1", "Content-Type": "application/xml; charset=utf-8"}
+        request_headers = {
+            "Depth": "1",
+            "Content-Type": "application/xml; charset=utf-8",
+        }
         if headers:
             request_headers.update(headers)
-        
+
         response = client.request(
             method,
             url,
@@ -94,5 +97,3 @@ class CardDAVAdapter:
 
     def delete_contact(self, *args, **kwargs) -> None:
         raise NotImplementedError("CardDAV write operations not implemented")
-
-

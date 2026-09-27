@@ -9,6 +9,7 @@ from enum import Enum
 
 class EventStatus(str, Enum):
     """Event status values."""
+
     CONFIRMED = "confirmed"
     TENTATIVE = "tentative"
     CANCELLED = "cancelled"
@@ -21,6 +22,7 @@ class EventStatus(str, Enum):
 
 class AttendeeStatus(str, Enum):
     """Attendee response status."""
+
     NEEDS_ACTION = "needsAction"
     ACCEPTED = "accepted"
     DECLINED = "declined"
@@ -30,6 +32,7 @@ class AttendeeStatus(str, Enum):
 @dataclass(frozen=True)
 class Calendar:
     """A calendar."""
+
     id: str
     name: str
     provider: str
@@ -43,6 +46,7 @@ class Calendar:
 @dataclass(frozen=True)
 class Attendee:
     """An event attendee."""
+
     email: str
     name: str | None = None
     status: AttendeeStatus = AttendeeStatus.NEEDS_ACTION
@@ -54,6 +58,7 @@ class Attendee:
 @dataclass(frozen=True)
 class Event:
     """A calendar event."""
+
     id: str
     calendar_id: str
     summary: str
@@ -71,12 +76,13 @@ class Event:
     creator: Attendee | None = None
     organizer: Attendee | None = None
     transparency: str = "opaque"  # opaque or transparent
-    visibility: str = "default"   # default, public, private, confidential
+    visibility: str = "default"  # default, public, private, confidential
 
 
 @dataclass(frozen=True)
 class FreeBusyRequest:
     """Free/busy query request."""
+
     calendar_ids: list[str]
     time_min: datetime
     time_max: datetime
@@ -85,6 +91,7 @@ class FreeBusyRequest:
 @dataclass(frozen=True)
 class FreeBusyPeriod:
     """A busy period from free/busy query."""
+
     start: datetime
     end: datetime
 
@@ -92,6 +99,7 @@ class FreeBusyPeriod:
 @dataclass(frozen=True)
 class FreeBusyResponse:
     """Free/busy query response."""
+
     calendars: dict[str, list[FreeBusyPeriod]]
 
 
@@ -109,5 +117,3 @@ class EventNotFound(CalendarError):
 
 class CalendarAuthError(CalendarError):
     """Calendar authentication error."""
-
-

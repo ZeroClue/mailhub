@@ -66,6 +66,7 @@ class TestCompletionConstants:
 class TestCompletionCLI:
     def test_cli_generates_bash(self, capsys):
         from mailhub.cli import main
+
         assert main(["--generate-completion", "bash"]) == 0
         out = capsys.readouterr().out
         assert "# mailhub bash completion" in out
@@ -73,6 +74,7 @@ class TestCompletionCLI:
 
     def test_cli_generates_fish(self, capsys):
         from mailhub.cli import main
+
         assert main(["--generate-completion", "fish"]) == 0
         out = capsys.readouterr().out
         assert "# mailhub fish completion" in out
@@ -80,6 +82,7 @@ class TestCompletionCLI:
 
     def test_cli_invalid_shell(self, capsys):
         from mailhub.cli import main
+
         with pytest.raises(SystemExit) as exc:
             main(["--generate-completion", "powershell"])
         assert exc.value.code == 2  # argparse rejects invalid choice

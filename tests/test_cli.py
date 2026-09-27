@@ -28,4 +28,3 @@ def test_status_reports_configured_accounts_without_provider_calls(tmp_path, cap
 def test_status_reports_missing_configuration_clearly(tmp_path, capsys):
     assert main(["status", "--config", str(tmp_path / "missing.toml")]) == 2
     assert "run 'mailhub init'" in capsys.readouterr().err
-

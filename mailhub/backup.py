@@ -134,7 +134,9 @@ def backup_audit(output_path: Path, audit_file: Path | None = None) -> Path:
     return output_path
 
 
-def backup_all(output_dir: Path, config_file: Path | None = None, state_file: Path | None = None) -> Path:
+def backup_all(
+    output_dir: Path, config_file: Path | None = None, state_file: Path | None = None
+) -> Path:
     """
     Create a timestamped tar.gz archive containing config, state, and audit.
 

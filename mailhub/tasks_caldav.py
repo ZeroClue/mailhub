@@ -50,10 +50,13 @@ class CalDAVTasksAdapter:
         content: str | None = None,
     ) -> httpx.Response:
         client = self._get_client()
-        request_headers = {"Depth": "1", "Content-Type": "application/xml; charset=utf-8"}
+        request_headers = {
+            "Depth": "1",
+            "Content-Type": "application/xml; charset=utf-8",
+        }
         if headers:
             request_headers.update(headers)
-        
+
         response = client.request(
             method,
             url,
@@ -102,5 +105,3 @@ class CalDAVTasksAdapter:
 
     def delete_task(self, *args, **kwargs) -> None:
         raise NotImplementedError("CalDAV VTODO write operations not implemented")
-
-

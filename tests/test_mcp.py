@@ -31,5 +31,3 @@ def test_read_only_mode_explicit():
     server = create_server(mode="ro")
     registered = set(server._tool_manager._tools)
     assert registered == set(READ_ONLY_TOOL_NAMES)
-
-

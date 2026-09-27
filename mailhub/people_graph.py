@@ -86,11 +86,12 @@ class GraphPeopleAdapter:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                             else:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                     response.raise_for_status()
@@ -105,27 +106,32 @@ class GraphPeopleAdapter:
                     if headers:
                         request_headers.update(headers)
                     continue
-                if e.response.status_code in (429,) or 500 <= e.response.status_code < 600:
+                if (
+                    e.response.status_code in (429,)
+                    or 500 <= e.response.status_code < 600
+                ):
                     if attempt < retry_policy.max_attempts - 1:
                         retry_after = e.response.headers.get("Retry-After")
                         if retry_after:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                             else:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                 raise
 
             except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
-                    delay = retry_policy.base_delay * (2 ** attempt)
+                    delay = retry_policy.base_delay * (2**attempt)
                     delay = min(delay, retry_policy.max_delay)
                     import time
+
                     time.sleep(delay)
                     continue
                 raise
@@ -148,12 +154,14 @@ class GraphPeopleAdapter:
         # Parse name
         names = ()
         if data.get("givenName") or data.get("surname"):
-            names = (Name(
-                given=data.get("givenName"),
-                family=data.get("surname"),
-                middle=data.get("middleName"),
-                display=data.get("displayName"),
-            ),)
+            names = (
+                Name(
+                    given=data.get("givenName"),
+                    family=data.get("surname"),
+                    middle=data.get("middleName"),
+                    display=data.get("displayName"),
+                ),
+            )
 
         # Parse emails
         emails = tuple(
@@ -180,17 +188,20 @@ class GraphPeopleAdapter:
         # Parse organizations
         organizations = ()
         if data.get("companyName") or data.get("jobTitle"):
-            organizations = (Organization(
-                name=data.get("companyName", ""),
-                title=data.get("jobTitle"),
-                department=data.get("department"),
-            ),)
+            organizations = (
+                Organization(
+                    name=data.get("companyName", ""),
+                    title=data.get("jobTitle"),
+                    department=data.get("department"),
+                ),
+            )
 
         # Parse birthday
         birthday = None
         if data.get("birthday"):
             try:
                 from datetime import date
+
                 parts = data["birthday"].split("-")
                 if len(parts) == 3:
                     birthday = date(int(parts[0]), int(parts[1]), int(parts[2]))
@@ -228,7 +239,7 @@ class GraphPeopleAdapter:
             "$skip": skip,
             "$orderby": "givenName,surname",
         }
-        
+
         url = f"{GRAPH_BASE}/contacts"
         if folder_id:
             url = f"{GRAPH_BASE}/contactFolders/{folder_id}/contacts"
@@ -238,7 +249,9 @@ class GraphPeopleAdapter:
         contacts = [self._parse_contact(c) for c in data.get("value", [])]
         return {
             "contacts": contacts,
-            "next_page_token": data.get("@odata.nextLink", "").split("$skiptoken=")[-1] if "@odata.nextLink" in data else None,
+            "next_page_token": data.get("@odata.nextLink", "").split("$skiptoken=")[-1]
+            if "@odata.nextLink" in data
+            else None,
         }
 
     def get_contact(self, alias: str, contact_id: str) -> Contact:
@@ -247,27 +260,37 @@ class GraphPeopleAdapter:
         data = response.json()
         return self._parse_contact(data)
 
-    def create_contact(self, alias: str, contact: Contact, confirm: bool = False) -> Contact:
+    def create_contact(
+        self, alias: str, contact: Contact, confirm: bool = False
+    ) -> Contact:
         """Create a contact (requires confirm)."""
         if not confirm:
             raise ValueError("create contact requires confirm=True")
 
         body = self._contact_to_body(contact)
-        response = self._request("POST", f"{GRAPH_BASE}/contacts", alias, json_data=body)
+        response = self._request(
+            "POST", f"{GRAPH_BASE}/contacts", alias, json_data=body
+        )
         data = response.json()
         return self._parse_contact(data)
 
-    def update_contact(self, alias: str, contact_id: str, contact: Contact, confirm: bool = False) -> Contact:
+    def update_contact(
+        self, alias: str, contact_id: str, contact: Contact, confirm: bool = False
+    ) -> Contact:
         """Update a contact (requires confirm)."""
         if not confirm:
             raise ValueError("update contact requires confirm=True")
 
         body = self._contact_to_body(contact)
-        response = self._request("PATCH", f"{GRAPH_BASE}/contacts/{contact_id}", alias, json_data=body)
+        response = self._request(
+            "PATCH", f"{GRAPH_BASE}/contacts/{contact_id}", alias, json_data=body
+        )
         data = response.json()
         return self._parse_contact(data)
 
-    def delete_contact(self, alias: str, contact_id: str, confirm: bool = False) -> None:
+    def delete_contact(
+        self, alias: str, contact_id: str, confirm: bool = False
+    ) -> None:
         """Delete a contact (requires confirm)."""
         if not confirm:
             raise ValueError("delete contact requires confirm=True")
@@ -280,19 +303,25 @@ class GraphPeopleAdapter:
         data = response.json()
         folders = []
         for f in data.get("value", []):
-            folders.append(ContactGroup(
-                id=f["id"],
-                name=f.get("displayName", ""),
-            ))
+            folders.append(
+                ContactGroup(
+                    id=f["id"],
+                    name=f.get("displayName", ""),
+                )
+            )
         return folders
 
-    def create_folder(self, alias: str, name: str, confirm: bool = False) -> ContactGroup:
+    def create_folder(
+        self, alias: str, name: str, confirm: bool = False
+    ) -> ContactGroup:
         """Create a contact folder (requires confirm)."""
         if not confirm:
             raise ValueError("create folder requires confirm=True")
 
         body = {"displayName": name}
-        response = self._request("POST", f"{GRAPH_BASE}/contactFolders", alias, json_data=body)
+        response = self._request(
+            "POST", f"{GRAPH_BASE}/contactFolders", alias, json_data=body
+        )
         data = response.json()
         return ContactGroup(
             id=data["id"],
@@ -351,5 +380,3 @@ class GraphPeopleAdapter:
             body["personalNotes"] = contact.notes
 
         return body
-
-

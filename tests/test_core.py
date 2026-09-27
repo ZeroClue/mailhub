@@ -79,19 +79,19 @@ capabilities = ["mail"]
         mock_gmail.send.return_value = {"id": "msg123"}
         mock_gmail.draft.return_value = {"id": "draft123"}
         mock_gmail.profile.return_value = {"email": "test@gmail.com"}
-        
+
         mock_graph = MagicMock()
         mock_graph.send.return_value = {"id": "msg123"}
         mock_graph.draft.return_value = {"id": "draft123"}
         mock_graph.profile.return_value = {"email": "test@outlook.com"}
-        
+
         def mock_get_adapter(provider):
             if provider == "gmail":
                 return mock_gmail
             elif provider == "graph":
                 return mock_graph
             raise CoreError(f"unsupported provider: {provider}")
-        
+
         core._get_adapter = mock_get_adapter
         yield core
 
@@ -108,7 +108,9 @@ capabilities = ["mail"]
     def test_send_denied_without_confirm(self, core):
         # Confirm is checked first (fail fast)
         with pytest.raises(SendDenied, match="send requires confirm=true"):
-            core.send("personal", to=["test@example.com"], subject="Test", confirm=False)
+            core.send(
+                "personal", to=["test@example.com"], subject="Test", confirm=False
+            )
 
     def test_send_denied_without_allowlist(self, core):
         # With confirm=true but no allowlist, should fail on allowlist
@@ -118,13 +120,17 @@ capabilities = ["mail"]
     def test_send_allowed_with_allow_anywhere(self, core):
         # allow_anywhere=True should skip allowlist
         core._send_policy = SendPolicy(allow_anywhere=True)
-        result = core.send("personal", to=["test@example.com"], subject="Test", confirm=True)
+        result = core.send(
+            "personal", to=["test@example.com"], subject="Test", confirm=True
+        )
         assert result.get("id") == "msg123"
 
     def test_send_allowed_with_matching_allowlist(self, core):
         # Matching allowlist should allow send
         core._send_policy = SendPolicy(allowlist=("*@example.com",))
-        result = core.send("personal", to=["test@example.com"], subject="Test", confirm=True)
+        result = core.send(
+            "personal", to=["test@example.com"], subject="Test", confirm=True
+        )
         assert result.get("id") == "msg123"
 
     def test_draft_does_not_require_confirm(self, core):
@@ -136,7 +142,7 @@ capabilities = ["mail"]
         audit_file = tmp_path / "audit.jsonl"
         core._audit_path = audit_file
         core._audit("personal", "send", {"to": ["test@example.com"], "subject": "Test"})
-        
+
         assert audit_file.exists()
         lines = audit_file.read_text().strip().split("\n")
         assert len(lines) == 1
@@ -149,8 +155,12 @@ capabilities = ["mail"]
         audit_file = tmp_path / "audit.jsonl"
         core._audit_path = audit_file
         # The audit method sanitizes sensitive fields - they should be [REDACTED]
-        core._audit("personal", "send", {"access_token": "secret123", "to": ["test@example.com"]})
-        
+        core._audit(
+            "personal",
+            "send",
+            {"access_token": "secret123", "to": ["test@example.com"]},
+        )
+
         lines = audit_file.read_text().strip().split("\n")
         entry = json.loads(lines[0])
         # Check that access_token is redacted, not the raw value
@@ -168,7 +178,9 @@ capabilities = ["mail"]
 """)
         state_file = tmp_path / "credentials.json"
         state_file.parent.mkdir(exist_ok=True)
-        state_file.write_text('{"accounts": {"personal": {"refresh_token": "rt123", "client_id": "cid", "client_secret": "csecret"}}}')
+        state_file.write_text(
+            '{"accounts": {"personal": {"refresh_token": "rt123", "client_id": "cid", "client_secret": "csecret"}}}'
+        )
         return config_file, state_file
 
     def test_load_credentials(self, temp_files):
@@ -182,13 +194,18 @@ capabilities = ["mail"]
         config_file, state_file = temp_files
         core = Core(config_file=config_file, state_file=state_file)
         from mailhub.core import AccountCredentials
-        creds = AccountCredentials(access_token="at123", refresh_token="rt123", expires_at=9999999999, client_id="cid", client_secret="csecret")
+
+        creds = AccountCredentials(
+            access_token="at123",
+            refresh_token="rt123",
+            expires_at=9999999999,
+            client_id="cid",
+            client_secret="csecret",
+        )
         core._save_credentials("personal", creds)
-        
+
         # Reload and verify
         core2 = Core(config_file=config_file, state_file=state_file)
         loaded = core2._load_credentials("personal")
         assert loaded.access_token == "at123"
         assert loaded.expires_at == 9999999999
-
-

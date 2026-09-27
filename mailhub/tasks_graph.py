@@ -83,11 +83,12 @@ class GraphTasksAdapter:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                             else:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                     response.raise_for_status()
@@ -102,27 +103,32 @@ class GraphTasksAdapter:
                     if headers:
                         request_headers.update(headers)
                     continue
-                if e.response.status_code in (429,) or 500 <= e.response.status_code < 600:
+                if (
+                    e.response.status_code in (429,)
+                    or 500 <= e.response.status_code < 600
+                ):
                     if attempt < retry_policy.max_attempts - 1:
                         retry_after = e.response.headers.get("Retry-After")
                         if retry_after:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                             else:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                 raise
 
             except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
-                    delay = retry_policy.base_delay * (2 ** attempt)
+                    delay = retry_policy.base_delay * (2**attempt)
                     delay = min(delay, retry_policy.max_delay)
                     import time
+
                     time.sleep(delay)
                     continue
                 raise
@@ -176,10 +182,18 @@ class GraphTasksAdapter:
             title=data.get("title", ""),
             notes=data.get("body", {}).get("content"),
             status=self._parse_status(data.get("status")),
-            due=self._parse_datetime(data.get("dueDateTime", {}).get("dateTime")) if data.get("dueDateTime") else None,
-            completed=self._parse_datetime(data.get("completedDateTime")) if data.get("completedDateTime") else None,
-            start=self._parse_datetime(data.get("startDateTime")) if data.get("startDateTime") else None,
-            recurrence=tuple(data.get("recurrence", {}).get("pattern", {}).get("recurrenceRange", [])),
+            due=self._parse_datetime(data.get("dueDateTime", {}).get("dateTime"))
+            if data.get("dueDateTime")
+            else None,
+            completed=self._parse_datetime(data.get("completedDateTime"))
+            if data.get("completedDateTime")
+            else None,
+            start=self._parse_datetime(data.get("startDateTime"))
+            if data.get("startDateTime")
+            else None,
+            recurrence=tuple(
+                data.get("recurrence", {}).get("pattern", {}).get("recurrenceRange", [])
+            ),
             priority=self._parse_priority(data.get("importance")),
             list_id=list_id,
             created=self._parse_datetime(data.get("createdDateTime")),
@@ -229,16 +243,22 @@ class GraphTasksAdapter:
         tasks = [self._parse_task(t, list_id) for t in data.get("value", [])]
         return {
             "tasks": tasks,
-            "next_page_token": data.get("@odata.nextLink", "").split("$skiptoken=")[-1] if "@odata.nextLink" in data else None,
+            "next_page_token": data.get("@odata.nextLink", "").split("$skiptoken=")[-1]
+            if "@odata.nextLink" in data
+            else None,
         }
 
     def get_task(self, alias: str, list_id: str, task_id: str) -> Task:
         """Get a single task."""
-        response = self._request("GET", f"{GRAPH_BASE}/todo/lists/{list_id}/tasks/{task_id}", alias)
+        response = self._request(
+            "GET", f"{GRAPH_BASE}/todo/lists/{list_id}/tasks/{task_id}", alias
+        )
         data = response.json()
         return self._parse_task(data, list_id)
 
-    def create_task(self, alias: str, list_id: str, task: Task, confirm: bool = False) -> Task:
+    def create_task(
+        self, alias: str, list_id: str, task: Task, confirm: bool = False
+    ) -> Task:
         """Create a task (requires confirm)."""
         if not confirm:
             raise ValueError("create task requires confirm=True")
@@ -250,24 +270,33 @@ class GraphTasksAdapter:
         data = response.json()
         return self._parse_task(data, list_id)
 
-    def update_task(self, alias: str, list_id: str, task_id: str, task: Task, confirm: bool = False) -> Task:
+    def update_task(
+        self, alias: str, list_id: str, task_id: str, task: Task, confirm: bool = False
+    ) -> Task:
         """Update a task (requires confirm)."""
         if not confirm:
             raise ValueError("update task requires confirm=True")
 
         body = self._task_to_body(task)
         response = self._request(
-            "PATCH", f"{GRAPH_BASE}/todo/lists/{list_id}/tasks/{task_id}", alias, json_data=body
+            "PATCH",
+            f"{GRAPH_BASE}/todo/lists/{list_id}/tasks/{task_id}",
+            alias,
+            json_data=body,
         )
         data = response.json()
         return self._parse_task(data, list_id)
 
-    def delete_task(self, alias: str, list_id: str, task_id: str, confirm: bool = False) -> None:
+    def delete_task(
+        self, alias: str, list_id: str, task_id: str, confirm: bool = False
+    ) -> None:
         """Delete a task (requires confirm)."""
         if not confirm:
             raise ValueError("delete task requires confirm=True")
 
-        self._request("DELETE", f"{GRAPH_BASE}/todo/lists/{list_id}/tasks/{task_id}", alias)
+        self._request(
+            "DELETE", f"{GRAPH_BASE}/todo/lists/{list_id}/tasks/{task_id}", alias
+        )
 
     def create_list(self, alias: str, title: str, confirm: bool = False) -> TaskList:
         """Create a task list (requires confirm)."""
@@ -275,7 +304,9 @@ class GraphTasksAdapter:
             raise ValueError("create list requires confirm=True")
 
         body = {"displayName": title}
-        response = self._request("POST", f"{GRAPH_BASE}/todo/lists", alias, json_data=body)
+        response = self._request(
+            "POST", f"{GRAPH_BASE}/todo/lists", alias, json_data=body
+        )
         data = response.json()
         return self._parse_list(data)
 
@@ -295,5 +326,3 @@ class GraphTasksAdapter:
             # Simplified - Graph recurrence is complex
             pass
         return body
-
-

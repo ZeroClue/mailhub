@@ -61,7 +61,7 @@ class CalDAVAdapter:
         request_headers = {"Depth": "1", "Content-Type": "application/xml"}
         if headers:
             request_headers.update(headers)
-        
+
         response = client.request(
             method,
             url,
@@ -135,5 +135,3 @@ class CalDAVAdapter:
 
     def delete_event(self, *args, **kwargs) -> None:
         raise NotImplementedError("CalDAV write operations not implemented")
-
-

@@ -9,6 +9,7 @@ from enum import Enum
 
 class TaskStatus(str, Enum):
     """Task status values."""
+
     NEEDS_ACTION = "needsAction"
     COMPLETED = "completed"
     IN_PROGRESS = "inProgress"
@@ -18,6 +19,7 @@ class TaskStatus(str, Enum):
 
 class TaskPriority(str, Enum):
     """Task priority values."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -29,6 +31,7 @@ class TaskPriority(str, Enum):
 @dataclass(frozen=True)
 class Reminder:
     """Task reminder."""
+
     trigger: datetime
     method: str = "display"  # display, email
 
@@ -36,6 +39,7 @@ class Reminder:
 @dataclass(frozen=True)
 class Task:
     """A task."""
+
     id: str
     etag: str | None = None
     title: str = ""
@@ -55,6 +59,7 @@ class Task:
 @dataclass(frozen=True)
 class TaskList:
     """A task list."""
+
     id: str
     title: str
     updated: datetime | None = None
@@ -71,5 +76,3 @@ class TaskNotFound(TasksError):
 
 class ListNotFound(TasksError):
     """Task list not found."""
-
-

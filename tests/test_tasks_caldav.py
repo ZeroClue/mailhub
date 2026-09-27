@@ -14,13 +14,13 @@ class TestCalDAVTasksAdapter:
     def test_not_implemented_write_operations(self):
         mock_core = MagicMock()
         adapter = CalDAVTasksAdapter(mock_core)
-        
+
         with pytest.raises(NotImplementedError):
             adapter.create_task()
-        
+
         with pytest.raises(NotImplementedError):
             adapter.update_task()
-        
+
         with pytest.raises(NotImplementedError):
             adapter.delete_task()
 
@@ -31,13 +31,11 @@ class TestCalDAVTasksAdapter:
         mock_creds.client_secret = "user"
         mock_creds.access_token = "pass"
         mock_core._load_credentials.return_value = mock_creds
-        
+
         adapter = CalDAVTasksAdapter(mock_core)
-        
+
         assert adapter.lists("test_alias") == []
         assert adapter.tasks("test_alias", "cal1") == []
-        
+
         with pytest.raises(TaskNotFound):
             adapter.get_task("test_alias", "cal1", "t1")
-
-

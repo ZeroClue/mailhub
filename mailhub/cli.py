@@ -55,39 +55,67 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subcommands = parser.add_subparsers(dest="command")
 
-    init = subcommands.add_parser("init", help="create owner-only local configuration and state files")
-    init.add_argument("--config", type=_path, help="configuration file path (for tests or custom XDG use)")
-    init.add_argument("--state", type=_path, help="credential-state file path (for tests or custom XDG use)")
+    init = subcommands.add_parser(
+        "init", help="create owner-only local configuration and state files"
+    )
+    init.add_argument(
+        "--config",
+        type=_path,
+        help="configuration file path (for tests or custom XDG use)",
+    )
+    init.add_argument(
+        "--state",
+        type=_path,
+        help="credential-state file path (for tests or custom XDG use)",
+    )
 
     auth = subcommands.add_parser("auth", help="authorize an account (OAuth flow)")
-    auth.add_argument("provider", choices=("gmail", "graph", "imap"), help="provider: gmail or graph")
+    auth.add_argument(
+        "provider", choices=("gmail", "graph", "imap"), help="provider: gmail or graph"
+    )
     auth.add_argument("alias", help="account alias from config")
     auth.add_argument("--code", help="authorization code or redirect URL from browser")
     auth.add_argument("--config", type=_path, help="configuration file path")
     auth.add_argument("--state", type=_path, help="credential state file path")
 
-    status = subcommands.add_parser("status", help="show configured accounts without contacting providers")
+    status = subcommands.add_parser(
+        "status", help="show configured accounts without contacting providers"
+    )
     status.add_argument("--config", type=_path, help="configuration file path")
 
-    doctor = subcommands.add_parser("doctor", help="check account health and refresh tokens")
+    doctor = subcommands.add_parser(
+        "doctor", help="check account health and refresh tokens"
+    )
     doctor.add_argument("--config", type=_path, help="configuration file path")
 
-    reauth = subcommands.add_parser("reauth", help="re-authorize an account (force new consent)")
-    reauth.add_argument("provider", choices=("gmail", "graph", "imap"), help="provider: gmail or graph")
+    reauth = subcommands.add_parser(
+        "reauth", help="re-authorize an account (force new consent)"
+    )
+    reauth.add_argument(
+        "provider", choices=("gmail", "graph", "imap"), help="provider: gmail or graph"
+    )
     reauth.add_argument("alias", help="account alias from config")
     reauth.add_argument("--config", type=_path, help="configuration file path")
 
-    logout = subcommands.add_parser("logout", help="remove stored tokens for an account")
+    logout = subcommands.add_parser(
+        "logout", help="remove stored tokens for an account"
+    )
     logout.add_argument("alias", help="account alias from config")
     logout.add_argument("--config", type=_path, help="configuration file path")
 
-    serve = subcommands.add_parser("serve", help="start REST API server (127.0.0.1 only)")
-    serve.add_argument("--host", default="127.0.0.1", help="bind address (default: 127.0.0.1)")
+    serve = subcommands.add_parser(
+        "serve", help="start REST API server (127.0.0.1 only)"
+    )
+    serve.add_argument(
+        "--host", default="127.0.0.1", help="bind address (default: 127.0.0.1)"
+    )
     serve.add_argument("--port", type=int, default=8787, help="port (default: 8787)")
     serve.add_argument("--config", type=_path, help="configuration file path")
 
     mcp = subcommands.add_parser("mcp", help="run Mailhub MCP over stdio")
-    mcp.add_argument("--mode", default="ro", choices=("ro", "full"), help="read-only or full mode")
+    mcp.add_argument(
+        "--mode", default="ro", choices=("ro", "full"), help="read-only or full mode"
+    )
     mcp.add_argument("--config", type=_path, help="configuration file path")
 
     config = subcommands.add_parser("config", help="manage mailhub configuration")
@@ -96,26 +124,47 @@ def build_parser() -> argparse.ArgumentParser:
     config_list = config_sub.add_parser("list", help="list configured accounts")
     config_list.add_argument("--config", type=_path, help="configuration file path")
 
-    config_add = config_sub.add_parser("add-account", help="add a new account (non-interactive)")
+    config_add = config_sub.add_parser(
+        "add-account", help="add a new account (non-interactive)"
+    )
     config_add.add_argument("--config", type=_path, help="configuration file path")
     config_add.add_argument("--alias", help="account alias")
     config_add.add_argument("--provider", help="provider (e.g. gmail, graph)")
-    config_add.add_argument("--capabilities", nargs="+", choices=["mail", "calendar", "contacts", "tasks"], help="capabilities")
+    config_add.add_argument(
+        "--capabilities",
+        nargs="+",
+        choices=["mail", "calendar", "contacts", "tasks"],
+        help="capabilities",
+    )
     config_add.add_argument("--email", help="email address")
 
-    config_validate = config_sub.add_parser("validate", help="validate config syntax and provider credentials")
+    config_validate = config_sub.add_parser(
+        "validate", help="validate config syntax and provider credentials"
+    )
     config_validate.add_argument("--config", type=_path, help="configuration file path")
 
-    config_doctor = config_sub.add_parser("doctor", help="validate config structure and check account health")
+    config_doctor = config_sub.add_parser(
+        "doctor", help="validate config structure and check account health"
+    )
     config_doctor.add_argument("--config", type=_path, help="configuration file path")
 
-    config_setup_google = config_sub.add_parser("setup-google", help="open browser to Google Cloud Console for OAuth setup")
-    config_setup_google.add_argument("--config", type=_path, help="configuration file path")
+    config_setup_google = config_sub.add_parser(
+        "setup-google", help="open browser to Google Cloud Console for OAuth setup"
+    )
+    config_setup_google.add_argument(
+        "--config", type=_path, help="configuration file path"
+    )
 
-    config_setup_microsoft = config_sub.add_parser("setup-microsoft", help="open browser to Entra ID for app registration")
-    config_setup_microsoft.add_argument("--config", type=_path, help="configuration file path")
+    config_setup_microsoft = config_sub.add_parser(
+        "setup-microsoft", help="open browser to Entra ID for app registration"
+    )
+    config_setup_microsoft.add_argument(
+        "--config", type=_path, help="configuration file path"
+    )
 
-    config_remove = config_sub.add_parser("remove-account", help="remove an account from configuration")
+    config_remove = config_sub.add_parser(
+        "remove-account", help="remove an account from configuration"
+    )
     config_remove.add_argument("alias", help="account alias to remove")
     config_remove.add_argument("--config", type=_path, help="configuration file path")
 
@@ -178,17 +227,28 @@ def handle_config_add_account(args, config_file: Path) -> int:
 
     if args.alias and args.provider and args.capabilities:
         try:
-            add_account(config, args.alias, args.provider, args.capabilities, args.email, config_file)
+            add_account(
+                config,
+                args.alias,
+                args.provider,
+                args.capabilities,
+                args.email,
+                config_file,
+            )
         except ConfigError as error:
             _print_error(f"mailhub: {error}")
             return 1
-        print(f"Added account: {args.alias} ({args.provider}) with capabilities: {', '.join(args.capabilities)}")
+        print(
+            f"Added account: {args.alias} ({args.provider}) with capabilities: {', '.join(args.capabilities)}"
+        )
         if args.email:
             print(f"  Email: {args.email}")
         print("Run 'mailhub auth' to authorize this account.")
         return 0
 
-    _print_error("mailhub: interactive mode not yet implemented; use --alias --provider --capabilities --email")
+    _print_error(
+        "mailhub: interactive mode not yet implemented; use --alias --provider --capabilities --email"
+    )
     return 1
 
 
@@ -197,7 +257,9 @@ def handle_config_validate(args, config_file: Path) -> int:
         with config_file.open("rb") as file:
             data = tomllib.load(file)
     except FileNotFoundError:
-        _print_error(f"mailhub: configuration not found: {config_file}; run 'mailhub init'")
+        _print_error(
+            f"mailhub: configuration not found: {config_file}; run 'mailhub init'"
+        )
         return 2
     except tomllib.TOMLDecodeError as error:
         _print_error(f"mailhub: invalid TOML in {config_file}: {error}")
@@ -268,7 +330,9 @@ def handle_config_setup_google(args, config_file: Path) -> int:
     print("   - Fill required fields (app name, support email)")
     print("   - Add scopes: .../auth/gmail.modify, .../auth/userinfo.email")
     print("   - Publish to production (avoids 7-day token expiry)")
-    print("5. Create credentials: APIs & Services > Credentials > Create Credentials > OAuth client ID")
+    print(
+        "5. Create credentials: APIs & Services > Credentials > Create Credentials > OAuth client ID"
+    )
     print("   - Application type: Desktop app")
     print("6. Copy the Client ID and Client Secret")
     print()
@@ -316,7 +380,9 @@ def handle_config_setup_microsoft(args, config_file: Path) -> int:
     print("3. Name your app, choose 'Personal Microsoft accounts only'")
     print("4. Redirect URI: http://localhost:8788 (Mobile and desktop applications)")
     print("5. API permissions > Add a permission > Microsoft Graph > Delegated:")
-    print("   - offline_access, Mail.ReadWrite, Mail.Send, MailboxSettings.ReadWrite, User.Read")
+    print(
+        "   - offline_access, Mail.ReadWrite, Mail.Send, MailboxSettings.ReadWrite, User.Read"
+    )
     print("6. Grant admin consent if needed")
     print("7. Copy the Application (client) ID")
     print()
@@ -351,8 +417,6 @@ def handle_config_setup_microsoft(args, config_file: Path) -> int:
     print("Microsoft OAuth credentials saved to config.")
     print("Run 'mailhub config add-account' to add Graph accounts.")
     return 0
-
-
 
 
 def handle_config_remove_account(args, config_file: Path) -> int:
@@ -425,118 +489,171 @@ def main(argv: Sequence[str] | None = None) -> int:
             raw = config._raw
             account_raw = raw.get("accounts", {}).get(args.alias, {})
             global_imap = raw.get("imap", {})
-            
+
             # Merge: per-account overrides global
             imap_config = {**global_imap, **account_raw}
-            
+
             # If missing critical settings, run wizard
             required = ["imap_host", "imap_port", "smtp_host", "smtp_port"]
             missing = [k for k in required if not imap_config.get(k)]
-            
+
             if missing:
-                print(f"IMAP/SMTP settings missing for '{args.alias}': {', '.join(missing)}")
+                print(
+                    f"IMAP/SMTP settings missing for '{args.alias}': {', '.join(missing)}"
+                )
                 print("Running configuration wizard...")
                 print()
-                
+
                 # Wizard prompts
-                imap_host = input(f"IMAP host [{imap_config.get('imap_host', '')}]: ").strip() or imap_config.get('imap_host', '')
+                imap_host = input(
+                    f"IMAP host [{imap_config.get('imap_host', '')}]: "
+                ).strip() or imap_config.get("imap_host", "")
                 if not imap_host:
                     _print_error("mailhub: IMAP host is required")
                     return 1
-                
-                imap_port = input(f"IMAP port [{imap_config.get('imap_port', '993')}]: ").strip() or imap_config.get('imap_port', '993')
-                imap_use_ssl = input(f"Use SSL/TLS for IMAP? [{ 'Y' if imap_config.get('imap_use_ssl', True) else 'y' }/n]: ").strip().lower()
-                imap_use_ssl = imap_use_ssl != 'n' if imap_use_ssl else True
-                imap_use_starttls = input(f"Use STARTTLS for IMAP? [{ 'Y' if imap_config.get('imap_use_starttls', False) else 'y' }/n]: ").strip().lower()
-                imap_use_starttls = imap_use_starttls == 'y'
-                
+
+                imap_port = input(
+                    f"IMAP port [{imap_config.get('imap_port', '993')}]: "
+                ).strip() or imap_config.get("imap_port", "993")
+                imap_use_ssl = (
+                    input(
+                        f"Use SSL/TLS for IMAP? [{'Y' if imap_config.get('imap_use_ssl', True) else 'y'}/n]: "
+                    )
+                    .strip()
+                    .lower()
+                )
+                imap_use_ssl = imap_use_ssl != "n" if imap_use_ssl else True
+                imap_use_starttls = (
+                    input(
+                        f"Use STARTTLS for IMAP? [{'Y' if imap_config.get('imap_use_starttls', False) else 'y'}/n]: "
+                    )
+                    .strip()
+                    .lower()
+                )
+                imap_use_starttls = imap_use_starttls == "y"
+
                 print()
-                smtp_host = input(f"SMTP host [{imap_config.get('smtp_host', '')}]: ").strip() or imap_config.get('smtp_host', '')
+                smtp_host = input(
+                    f"SMTP host [{imap_config.get('smtp_host', '')}]: "
+                ).strip() or imap_config.get("smtp_host", "")
                 if not smtp_host:
                     _print_error("mailhub: SMTP host is required")
                     return 1
-                
-                smtp_port = input(f"SMTP port [{imap_config.get('smtp_port', '587')}]: ").strip() or imap_config.get('smtp_port', '587')
-                smtp_use_ssl = input(f"Use SSL/TLS for SMTP (port 465)? [{ 'Y' if imap_config.get('smtp_use_ssl', False) else 'y' }/n]: ").strip().lower()
-                smtp_use_ssl = smtp_use_ssl == 'y'
-                smtp_use_starttls = input(f"Use STARTTLS for SMTP? [{ 'Y' if imap_config.get('smtp_use_starttls', True) else 'y' }/n]: ").strip().lower()
-                smtp_use_starttls = smtp_use_starttls != 'n' if smtp_use_starttls else True
-                
+
+                smtp_port = input(
+                    f"SMTP port [{imap_config.get('smtp_port', '587')}]: "
+                ).strip() or imap_config.get("smtp_port", "587")
+                smtp_use_ssl = (
+                    input(
+                        f"Use SSL/TLS for SMTP (port 465)? [{'Y' if imap_config.get('smtp_use_ssl', False) else 'y'}/n]: "
+                    )
+                    .strip()
+                    .lower()
+                )
+                smtp_use_ssl = smtp_use_ssl == "y"
+                smtp_use_starttls = (
+                    input(
+                        f"Use STARTTLS for SMTP? [{'Y' if imap_config.get('smtp_use_starttls', True) else 'y'}/n]: "
+                    )
+                    .strip()
+                    .lower()
+                )
+                smtp_use_starttls = (
+                    smtp_use_starttls != "n" if smtp_use_starttls else True
+                )
+
                 print()
                 print("Authentication:")
                 print("  plain        - username/password (standard)")
                 print("  app_password - app-specific password (Gmail, Outlook)")
                 print("  oauth2       - OAuth2 (not yet implemented)")
-                auth_method = input(f"Auth method [{imap_config.get('auth_method', 'plain')}]: ").strip().lower() or imap_config.get('auth_method', 'plain')
+                auth_method = input(
+                    f"Auth method [{imap_config.get('auth_method', 'plain')}]: "
+                ).strip().lower() or imap_config.get("auth_method", "plain")
                 if auth_method not in ("plain", "app_password", "oauth2"):
-                    _print_error("mailhub: auth_method must be plain, app_password, or oauth2")
+                    _print_error(
+                        "mailhub: auth_method must be plain, app_password, or oauth2"
+                    )
                     return 1
-                
+
                 # Save to config.toml (per-account) - update Account objects too
                 config_file = args.config or config_path()
-                
+
                 # Update the Account object in config with wizard data
                 updated_accounts = []
                 for acc in config.accounts:
                     if acc.alias == args.alias:
-                        updated_accounts.append(Account(
-                            alias=acc.alias,
-                            provider=acc.provider,
-                            capabilities=acc.capabilities,
-                            email=acc.email,
-                            imap_host=imap_host,
-                            imap_port=imap_port,
-                            imap_use_ssl=imap_use_ssl,
-                            imap_use_starttls=imap_use_starttls,
-                            smtp_host=smtp_host,
-                            smtp_port=smtp_port,
-                            smtp_use_ssl=smtp_use_ssl,
-                            smtp_use_starttls=smtp_use_starttls,
-                            auth_method=auth_method,
-                        ))
+                        updated_accounts.append(
+                            Account(
+                                alias=acc.alias,
+                                provider=acc.provider,
+                                capabilities=acc.capabilities,
+                                email=acc.email,
+                                imap_host=imap_host,
+                                imap_port=imap_port,
+                                imap_use_ssl=imap_use_ssl,
+                                imap_use_starttls=imap_use_starttls,
+                                smtp_host=smtp_host,
+                                smtp_port=smtp_port,
+                                smtp_use_ssl=smtp_use_ssl,
+                                smtp_use_starttls=smtp_use_starttls,
+                                auth_method=auth_method,
+                            )
+                        )
                     else:
                         updated_accounts.append(acc)
-                
+
                 raw = dict(config._raw)
                 accounts_raw = raw.setdefault("accounts", {})
                 if args.alias not in accounts_raw:
                     accounts_raw[args.alias] = {}
-                accounts_raw[args.alias].update({
-                    "imap_host": imap_host,
-                    "imap_port": int(imap_port),
-                    "imap_use_ssl": imap_use_ssl,
-                    "imap_use_starttls": imap_use_starttls,
-                    "smtp_host": smtp_host,
-                    "smtp_port": int(smtp_port),
-                    "smtp_use_ssl": smtp_use_ssl,
-                    "smtp_use_starttls": smtp_use_starttls,
-                    "auth_method": auth_method,
-                })
+                accounts_raw[args.alias].update(
+                    {
+                        "imap_host": imap_host,
+                        "imap_port": int(imap_port),
+                        "imap_use_ssl": imap_use_ssl,
+                        "imap_use_starttls": imap_use_starttls,
+                        "smtp_host": smtp_host,
+                        "smtp_port": int(smtp_port),
+                        "smtp_use_ssl": smtp_use_ssl,
+                        "smtp_use_starttls": smtp_use_starttls,
+                        "auth_method": auth_method,
+                    }
+                )
                 new_config = Config(accounts=tuple(updated_accounts), _raw=raw)
                 save_config(new_config, config_file)
                 print()
                 print(f"IMAP/SMTP settings saved for '{args.alias}'.")
                 print()
-            
+
             # Now prompt for credentials
-            imap_config = {**global_imap, **account_raw}  # Refresh after potential update
+            imap_config = {
+                **global_imap,
+                **account_raw,
+            }  # Refresh after potential update
             # The keys in imap_config are now imap_host, imap_port, etc. (matching config keys)
-            imap_username = input(f"IMAP username [{imap_config.get('imap_username', account.email)}]: ").strip() or imap_config.get('imap_username', account.email)
+            imap_username = input(
+                f"IMAP username [{imap_config.get('imap_username', account.email)}]: "
+            ).strip() or imap_config.get("imap_username", account.email)
             imap_password = input("IMAP password: ").strip()
             if not imap_password:
                 _print_error("mailhub: IMAP password required")
                 return 1
-            
+
             print("\nSMTP Configuration (press Enter to use IMAP settings):")
-            smtp_username = input(f"SMTP username [{imap_config.get('smtp_username', imap_username)}]: ").strip() or imap_config.get('smtp_username', imap_username)
-            smtp_password = input(f"SMTP password [{imap_config.get('smtp_password', imap_password)}]: ").strip() or imap_config.get('smtp_password', imap_password)
-            
+            smtp_username = input(
+                f"SMTP username [{imap_config.get('smtp_username', imap_username)}]: "
+            ).strip() or imap_config.get("smtp_username", imap_username)
+            smtp_password = input(
+                f"SMTP password [{imap_config.get('smtp_password', imap_password)}]: "
+            ).strip() or imap_config.get("smtp_password", imap_password)
+
             # Store credentials in credential store
             store = CredentialStore(args.state or state_path())
             store.initialize()
             data = store.load()
             accounts = data.setdefault("accounts", {})
-            
+
             accounts[args.alias] = {
                 "access_token": "",
                 "refresh_token": imap_password,
@@ -548,8 +665,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "auth_method": auth_method,
             }
             store.save(data)
-            
-            print(f"Successfully configured {args.alias} (IMAP with {auth_method} auth)")
+
+            print(
+                f"Successfully configured {args.alias} (IMAP with {auth_method} auth)"
+            )
             return 0
 
         # Use per-account OAuth credentials if available, otherwise provider-level
@@ -557,22 +676,31 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if not args.code:
             if not client_cfg["client_id"]:
-                _print_error(f"mailhub: no client_id configured for {args.alias} (provider {provider})")
+                _print_error(
+                    f"mailhub: no client_id configured for {args.alias} (provider {provider})"
+                )
                 return 1
-            url, state_obj = auth_url(provider, client_cfg["client_id"], account.email, args.alias)
+            url, state_obj = auth_url(
+                provider, client_cfg["client_id"], account.email, args.alias
+            )
             print(f"Open this URL in your browser:\n{url}\n")
             print("After consent, the browser will show a 404 at localhost:8788.")
             print("Copy the full URL from the address bar and run:")
             print(f"  mailhub auth {provider} {args.alias} --code '<pasted-url>'")
             import json as json_lib
+
             state_file = state_path().parent / f"oauth_{provider}_{args.alias}.json"
             state_file.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            state_file.write_text(json_lib.dumps({
-                "state": state_obj.state,
-                "provider": state_obj.provider,
-                "alias": state_obj.alias,
-                "code_verifier": state_obj.pkce.code_verifier,
-            }))
+            state_file.write_text(
+                json_lib.dumps(
+                    {
+                        "state": state_obj.state,
+                        "provider": state_obj.provider,
+                        "alias": state_obj.alias,
+                        "code_verifier": state_obj.pkce.code_verifier,
+                    }
+                )
+            )
             return 0
 
         code, state = parse_redirect(args.code)
@@ -580,6 +708,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_error("mailhub: no state in redirect URL")
             return 1
         import json as json_lib
+
         state_file = state_path().parent / f"oauth_{provider}_{args.alias}.json"
         if not state_file.exists():
             _print_error("mailhub: no stored auth state found")
@@ -587,14 +716,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         with state_file.open() as f:
             saved = json_lib.load(f)
         from .oauth import AuthState, PKCE
+
         stored = AuthState(
             state=saved["state"],
             provider=saved["provider"],
             alias=saved["alias"],
-            pkce=PKCE(code_verifier=saved["code_verifier"], code_challenge="")
+            pkce=PKCE(code_verifier=saved["code_verifier"], code_challenge=""),
         )
         pkce = check_state(state, provider, args.alias, stored)
-        tokens = exchange(provider, client_cfg["client_id"], client_cfg.get("client_secret", ""), code, pkce.code_verifier)
+        tokens = exchange(
+            provider,
+            client_cfg["client_id"],
+            client_cfg.get("client_secret", ""),
+            code,
+            pkce.code_verifier,
+        )
         state_file.unlink(missing_ok=True)
 
         store = CredentialStore(args.state or state_path())
@@ -604,7 +740,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         accounts[args.alias] = {
             "access_token": tokens.get("access_token"),
             "refresh_token": tokens.get("refresh_token"),
-            "expires_at": int(__import__("time").time()) + tokens.get("expires_in", 3600),
+            "expires_at": int(__import__("time").time())
+            + tokens.get("expires_in", 3600),
             "client_id": client_cfg["client_id"],
             "client_secret": client_cfg.get("client_secret"),
         }
@@ -625,17 +762,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         # IMAP: re-enter credentials
         if provider == "imap":
             print("IMAP/SMTP Re-configuration:")
-            auth_method = input("Auth method [plain/app_password] [plain]: ").strip() or "plain"
-            imap_username = input(f"IMAP username [{account.email}]: ").strip() or account.email
+            auth_method = (
+                input("Auth method [plain/app_password] [plain]: ").strip() or "plain"
+            )
+            imap_username = (
+                input(f"IMAP username [{account.email}]: ").strip() or account.email
+            )
             imap_password = input("IMAP password: ").strip()
             if not imap_password:
                 _print_error("mailhub: IMAP password required")
                 return 1
-            
+
             print("\nSMTP Configuration (press Enter to use IMAP settings):")
             smtp_username = input(f"SMTP username [{imap_username}]: ").strip()
             smtp_password = input(f"SMTP password [{imap_password}]: ").strip()
-            
+
             store = CredentialStore(args.state or state_path())
             store.initialize()
             data = store.load()
@@ -656,7 +797,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         client_cfg = config.provider_config(provider, args.alias)
         if not client_cfg["client_id"]:
-            _print_error(f"mailhub: no client_id configured for {args.alias} (provider {provider})")
+            _print_error(
+                f"mailhub: no client_id configured for {args.alias} (provider {provider})"
+            )
             return 1
         url, _ = auth_url(provider, client_cfg["client_id"], account.email, args.alias)
         print(f"Open this URL in your browser (forced consent):\n{url}\n")
@@ -700,11 +843,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "serve":
         from .app import run_server
+
         run_server(args.config, host=args.host, port=args.port)
         return 0
 
     if args.command == "mcp":
         from .mcp import run_stdio
+
         run_stdio(mode=args.mode, config_file=args.config)
         return 0
 

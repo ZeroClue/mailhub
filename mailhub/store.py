@@ -12,7 +12,9 @@ from typing import Any, Iterator
 
 try:  # fcntl is available on Mailhub's supported Unix-like local targets.
     import fcntl
-except ImportError:  # pragma: no cover - explicit failure is clearer on unsupported hosts.
+except (
+    ImportError
+):  # pragma: no cover - explicit failure is clearer on unsupported hosts.
     fcntl = None  # type: ignore[assignment]
 
 
@@ -69,7 +71,9 @@ class CredentialStore:
         except FileNotFoundError:
             return {}
         except json.JSONDecodeError as error:
-            raise StoreError(f"credential state is invalid JSON: {self.path}") from error
+            raise StoreError(
+                f"credential state is invalid JSON: {self.path}"
+            ) from error
         if not isinstance(data, dict):
             raise StoreError("credential state root must be an object")
         return data
@@ -80,7 +84,9 @@ class CredentialStore:
             raise StoreError("credential state must be an object")
         self.path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         os.chmod(self.path.parent, stat.S_IRWXU)
-        descriptor, temporary_name = tempfile.mkstemp(prefix=".credentials-", dir=self.path.parent)
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=".credentials-", dir=self.path.parent
+        )
         temporary = Path(temporary_name)
         try:
             os.fchmod(descriptor, stat.S_IRUSR | stat.S_IWUSR)

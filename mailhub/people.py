@@ -88,11 +88,12 @@ class GooglePeopleAdapter:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         else:
-                            delay = retry_policy.base_delay * (2 ** attempt)
+                            delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                     response.raise_for_status()
@@ -107,27 +108,32 @@ class GooglePeopleAdapter:
                     if headers:
                         request_headers.update(headers)
                     continue
-                if e.response.status_code in (429,) or 500 <= e.response.status_code < 600:
+                if (
+                    e.response.status_code in (429,)
+                    or 500 <= e.response.status_code < 600
+                ):
                     if attempt < retry_policy.max_attempts - 1:
                         retry_after = e.response.headers.get("Retry-After")
                         if retry_after:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         else:
-                            delay = retry_policy.base_delay * (2 ** attempt)
+                            delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                 raise
 
             except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
-                    delay = retry_policy.base_delay * (2 ** attempt)
+                    delay = retry_policy.base_delay * (2**attempt)
                     delay = min(delay, retry_policy.max_delay)
                     import time
+
                     time.sleep(delay)
                     continue
                 raise
@@ -209,8 +215,14 @@ class GooglePeopleAdapter:
         emails = tuple(self._parse_email(e) for e in data.get("emailAddresses", []))
         phones = tuple(self._parse_phone(p) for p in data.get("phoneNumbers", []))
         addresses = tuple(self._parse_address(a) for a in data.get("addresses", []))
-        organizations = tuple(self._parse_organization(o) for o in data.get("organizations", []))
-        birthday = self._parse_birthday(data.get("birthdays", [{}])[0]) if data.get("birthdays") else None
+        organizations = tuple(
+            self._parse_organization(o) for o in data.get("organizations", [])
+        )
+        birthday = (
+            self._parse_birthday(data.get("birthdays", [{}])[0])
+            if data.get("birthdays")
+            else None
+        )
         photos = tuple(self._parse_photo(p) for p in data.get("photos", []))
 
         return Contact(
@@ -222,7 +234,9 @@ class GooglePeopleAdapter:
             addresses=addresses,
             organizations=organizations,
             birthday=birthday,
-            notes=data.get("biographies", [{}])[0].get("value") if data.get("biographies") else None,
+            notes=data.get("biographies", [{}])[0].get("value")
+            if data.get("biographies")
+            else None,
             photos=photos,
             metadata=data.get("metadata", {}),
             source=ContactSource.GOOGLE,
@@ -265,7 +279,9 @@ class GooglePeopleAdapter:
         data = response.json()
         return self._parse_contact(data)
 
-    def create_contact(self, alias: str, contact: Contact, confirm: bool = False) -> Contact:
+    def create_contact(
+        self, alias: str, contact: Contact, confirm: bool = False
+    ) -> Contact:
         """Create a contact (requires confirm)."""
         if not confirm:
             raise ValueError("create contact requires confirm=True")
@@ -277,7 +293,9 @@ class GooglePeopleAdapter:
         data = response.json()
         return self._parse_contact(data)
 
-    def update_contact(self, alias: str, resource_name: str, contact: Contact, confirm: bool = False) -> Contact:
+    def update_contact(
+        self, alias: str, resource_name: str, contact: Contact, confirm: bool = False
+    ) -> Contact:
         """Update a contact (requires confirm)."""
         if not confirm:
             raise ValueError("update contact requires confirm=True")
@@ -290,7 +308,9 @@ class GooglePeopleAdapter:
         data = response.json()
         return self._parse_contact(data)
 
-    def delete_contact(self, alias: str, resource_name: str, confirm: bool = False) -> None:
+    def delete_contact(
+        self, alias: str, resource_name: str, confirm: bool = False
+    ) -> None:
         """Delete a contact (requires confirm)."""
         if not confirm:
             raise ValueError("delete contact requires confirm=True")
@@ -303,14 +323,18 @@ class GooglePeopleAdapter:
         data = response.json()
         groups = []
         for g in data.get("contactGroups", []):
-            groups.append(ContactGroup(
-                id=g.get("resourceName", "").replace("contactGroups/", ""),
-                name=g.get("name", ""),
-                member_count=g.get("memberCount", 0),
-            ))
+            groups.append(
+                ContactGroup(
+                    id=g.get("resourceName", "").replace("contactGroups/", ""),
+                    name=g.get("name", ""),
+                    member_count=g.get("memberCount", 0),
+                )
+            )
         return groups
 
-    def create_group(self, alias: str, name: str, confirm: bool = False) -> ContactGroup:
+    def create_group(
+        self, alias: str, name: str, confirm: bool = False
+    ) -> ContactGroup:
         """Create a contact group (requires confirm)."""
         if not confirm:
             raise ValueError("create group requires confirm=True")
@@ -325,7 +349,9 @@ class GooglePeopleAdapter:
             name=data.get("name", ""),
         )
 
-    def add_to_group(self, alias: str, group_id: str, contact_ids: list[str], confirm: bool = False) -> None:
+    def add_to_group(
+        self, alias: str, group_id: str, contact_ids: list[str], confirm: bool = False
+    ) -> None:
         """Add contacts to group (requires confirm)."""
         if not confirm:
             raise ValueError("add to group requires confirm=True")
@@ -343,13 +369,15 @@ class GooglePeopleAdapter:
 
         if contact.names:
             n = contact.names[0]
-            body["names"] = [{
-                "givenName": n.given,
-                "familyName": n.family,
-                "middleName": n.middle,
-                "honorificPrefix": n.prefix,
-                "honorificSuffix": n.suffix,
-            }]
+            body["names"] = [
+                {
+                    "givenName": n.given,
+                    "familyName": n.family,
+                    "middleName": n.middle,
+                    "honorificPrefix": n.prefix,
+                    "honorificSuffix": n.suffix,
+                }
+            ]
 
         if contact.emails:
             body["emailAddresses"] = [
@@ -386,17 +414,17 @@ class GooglePeopleAdapter:
             ]
 
         if contact.birthday:
-            body["birthdays"] = [{
-                "date": {
-                    "year": contact.birthday.year,
-                    "month": contact.birthday.month,
-                    "day": contact.birthday.day,
+            body["birthdays"] = [
+                {
+                    "date": {
+                        "year": contact.birthday.year,
+                        "month": contact.birthday.month,
+                        "day": contact.birthday.day,
+                    }
                 }
-            }]
+            ]
 
         if contact.notes:
             body["biographies"] = [{"value": contact.notes}]
 
         return body
-
-

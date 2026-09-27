@@ -14,14 +14,40 @@ from typing import Sequence
 
 class _HTMLToTextParser(HTMLParser):
     """HTML parser that extracts text content, preserving block structure."""
-    
+
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.out: list[str] = []
         self.skip_tags = {"script", "style", "head", "title", "meta", "noscript"}
-        self.block_tags = {"div", "p", "br", "li", "tr", "td", "th", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "hr", "section", "article", "header", "footer", "nav", "main", "aside", "table", "ul", "ol"}
+        self.block_tags = {
+            "div",
+            "p",
+            "br",
+            "li",
+            "tr",
+            "td",
+            "th",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "blockquote",
+            "hr",
+            "section",
+            "article",
+            "header",
+            "footer",
+            "nav",
+            "main",
+            "aside",
+            "table",
+            "ul",
+            "ol",
+        }
         self._skip_depth = 0
-    
+
     def handle_starttag(self, tag: str, attrs):
         tag_lower = tag.lower()
         if tag_lower in self.skip_tags:
@@ -30,14 +56,14 @@ class _HTMLToTextParser(HTMLParser):
             self.out.append("\n")
         elif tag_lower == "br":
             self.out.append("\n")
-    
+
     def handle_endtag(self, tag: str):
         tag_lower = tag.lower()
         if tag_lower in self.skip_tags and self._skip_depth > 0:
             self._skip_depth -= 1
         elif tag_lower in self.block_tags:
             self.out.append("\n")
-    
+
     def handle_data(self, data: str):
         if self._skip_depth == 0 and data:
             self.out.append(data)
@@ -46,7 +72,7 @@ class _HTMLToTextParser(HTMLParser):
 def html_to_text(html: str) -> str:
     """
     Convert HTML to plain text.
-    
+
     Strips tags, decodes entities, and normalizes whitespace.
     """
     if not html:
@@ -65,7 +91,7 @@ def html_to_text(html: str) -> str:
 def split_addrs(addrs: str) -> list[str]:
     """
     Parse comma-separated email addresses.
-    
+
     Handles display names in angle brackets.
     """
     if not addrs.strip():
@@ -90,7 +116,7 @@ def build_mime(
 ) -> EmailMessage:
     """
     Build a MIME email message.
-    
+
     Returns an EmailMessage ready to send via SMTP or provider API.
     """
     msg = EmailMessage()
@@ -124,5 +150,3 @@ def build_mime(
         msg.set_content("", subtype="plain", charset="utf-8")
 
     return msg
-
-

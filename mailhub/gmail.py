@@ -17,6 +17,7 @@ GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
 @dataclass
 class _Attachment:
     """Internal representation of an attachment."""
+
     attachment_id: str
     filename: str
     mime_type: str
@@ -93,11 +94,12 @@ class GmailAdapter:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         else:
-                            delay = retry_policy.base_delay * (2 ** attempt)
+                            delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                     response.raise_for_status()
@@ -114,27 +116,32 @@ class GmailAdapter:
                     if headers:
                         request_headers.update(headers)
                     continue
-                if e.response.status_code in (429,) or 500 <= e.response.status_code < 600:
+                if (
+                    e.response.status_code in (429,)
+                    or 500 <= e.response.status_code < 600
+                ):
                     if attempt < retry_policy.max_attempts - 1:
                         retry_after = e.response.headers.get("Retry-After")
                         if retry_after:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         else:
-                            delay = retry_policy.base_delay * (2 ** attempt)
+                            delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                 raise
 
             except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
-                    delay = retry_policy.base_delay * (2 ** attempt)
+                    delay = retry_policy.base_delay * (2**attempt)
                     delay = min(delay, retry_policy.max_delay)
                     import time
+
                     time.sleep(delay)
                     continue
                 raise
@@ -159,15 +166,17 @@ class GmailAdapter:
         data = response.json()
         labels = []
         for label in data.get("labels", []):
-            labels.append({
-                "id": label["id"],
-                "name": label["name"],
-                "type": label["type"],
-                "messages_total": label.get("messagesTotal"),
-                "messages_unread": label.get("messagesUnread"),
-                "threads_total": label.get("threadsTotal"),
-                "threads_unread": label.get("threadsUnread"),
-            })
+            labels.append(
+                {
+                    "id": label["id"],
+                    "name": label["name"],
+                    "type": label["type"],
+                    "messages_total": label.get("messagesTotal"),
+                    "messages_unread": label.get("messagesUnread"),
+                    "threads_total": label.get("threadsTotal"),
+                    "threads_unread": label.get("threadsUnread"),
+                }
+            )
         return labels
 
     def search(
@@ -227,16 +236,22 @@ class GmailAdapter:
             body = part.get("body", {})
 
             if body.get("attachmentId"):
-                attachments.append(_Attachment(
-                    attachment_id=body["attachmentId"],
-                    filename=part.get("filename", "attachment"),
-                    mime_type=mime_type,
-                    size=body.get("size", 0),
-                ))
+                attachments.append(
+                    _Attachment(
+                        attachment_id=body["attachmentId"],
+                        filename=part.get("filename", "attachment"),
+                        mime_type=mime_type,
+                        size=body.get("size", 0),
+                    )
+                )
             elif mime_type == "text/plain" and body.get("data"):
-                body_text = base64.urlsafe_b64decode(body["data"] + "=" * (-len(body["data"]) % 4)).decode("utf-8", errors="replace")
+                body_text = base64.urlsafe_b64decode(
+                    body["data"] + "=" * (-len(body["data"]) % 4)
+                ).decode("utf-8", errors="replace")
             elif mime_type == "text/html" and body.get("data"):
-                body_html = base64.urlsafe_b64decode(body["data"] + "=" * (-len(body["data"]) % 4)).decode("utf-8", errors="replace")
+                body_html = base64.urlsafe_b64decode(
+                    body["data"] + "=" * (-len(body["data"]) % 4)
+                ).decode("utf-8", errors="replace")
             elif "parts" in part:
                 for i, subpart in enumerate(part["parts"]):
                     extract_parts(subpart, f"{path}.{i}")
@@ -250,13 +265,20 @@ class GmailAdapter:
             "snippet": data.get("snippet", ""),
             "from": {"name": headers.get("from", ""), "addr": headers.get("from", "")},
             "to": [{"name": headers.get("to", ""), "addr": headers.get("to", "")}],
-            "cc": [{"name": headers.get("cc", ""), "addr": headers.get("cc", "")}] if headers.get("cc") else [],
+            "cc": [{"name": headers.get("cc", ""), "addr": headers.get("cc", "")}]
+            if headers.get("cc")
+            else [],
             "subject": headers.get("subject", ""),
             "date": headers.get("date", ""),
             "body_text": body_text,
             "body_html": body_html,
             "attachments": [
-                {"id": a.attachment_id, "filename": a.filename, "mime_type": a.mime_type, "size": a.size}
+                {
+                    "id": a.attachment_id,
+                    "filename": a.filename,
+                    "mime_type": a.mime_type,
+                    "size": a.size,
+                }
                 for a in attachments
             ],
         }
@@ -383,6 +405,6 @@ class GmailAdapter:
             alias,
         )
         data = response.json()
-        return base64.urlsafe_b64decode(data.get("data", "") + "=" * (-len(data.get("data", "")) % 4))
-
-
+        return base64.urlsafe_b64decode(
+            data.get("data", "") + "=" * (-len(data.get("data", "")) % 4)
+        )

@@ -87,11 +87,12 @@ class GoogleCalendarAdapter:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         else:
-                            delay = retry_policy.base_delay * (2 ** attempt)
+                            delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                     response.raise_for_status()
@@ -106,27 +107,32 @@ class GoogleCalendarAdapter:
                     if headers:
                         request_headers.update(headers)
                     continue
-                if e.response.status_code in (429,) or 500 <= e.response.status_code < 600:
+                if (
+                    e.response.status_code in (429,)
+                    or 500 <= e.response.status_code < 600
+                ):
                     if attempt < retry_policy.max_attempts - 1:
                         retry_after = e.response.headers.get("Retry-After")
                         if retry_after:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         else:
-                            delay = retry_policy.base_delay * (2 ** attempt)
+                            delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                 raise
 
             except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
-                    delay = retry_policy.base_delay * (2 ** attempt)
+                    delay = retry_policy.base_delay * (2**attempt)
                     delay = min(delay, retry_policy.max_delay)
                     import time
+
                     time.sleep(delay)
                     continue
                 raise
@@ -157,7 +163,7 @@ class GoogleCalendarAdapter:
 
     def _parse_event(self, data: dict, calendar_id: str) -> Event:
         attendees = tuple(self._parse_attendee(a) for a in data.get("attendees", []))
-        
+
         start = data.get("start", {})
         end = data.get("end", {})
         start_dt = self._parse_datetime(start.get("dateTime") or start.get("date"))
@@ -258,9 +264,7 @@ class GoogleCalendarAdapter:
             "timeMax": request.time_max.isoformat() + "Z",
             "items": items,
         }
-        response = self._request(
-            "POST", f"{GCAL_BASE}/freeBusy", alias, json_data=body
-        )
+        response = self._request("POST", f"{GCAL_BASE}/freeBusy", alias, json_data=body)
         data = response.json()
         calendars = {}
         for cal_id, cal_data in data.get("calendars", {}).items():
@@ -378,5 +382,3 @@ class GoogleCalendarAdapter:
         if event.visibility != "default":
             body["visibility"] = event.visibility
         return body
-
-

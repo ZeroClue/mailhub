@@ -30,6 +30,7 @@ class SendDenied(CoreError):
 @dataclass(frozen=True)
 class AuditEntry:
     """An audit log entry for mutating operations."""
+
     timestamp: str
     account: str
     operation: str
@@ -39,6 +40,7 @@ class AuditEntry:
 @dataclass
 class RetryPolicy:
     """Configuration for retry behavior."""
+
     max_attempts: int = 3
     base_delay: float = 1.0
     max_delay: float = 30.0
@@ -47,6 +49,7 @@ class RetryPolicy:
 @dataclass
 class SendPolicy:
     """Send policy configuration."""
+
     allowlist: tuple[str, ...] = ()
     allow_anywhere: bool = False
 
@@ -54,6 +57,7 @@ class SendPolicy:
 @dataclass
 class AccountCredentials:
     """Stored credentials for an account."""
+
     access_token: str | None = None
     refresh_token: str | None = None
     expires_at: float | None = None  # Unix timestamp
@@ -63,8 +67,15 @@ class AccountCredentials:
 
 # Fields that should never be logged in audit
 _SENSITIVE_FIELDS = {
-    "access_token", "refresh_token", "client_secret", "password",
-    "authorization", "bearer", "token", "secret", "code_verifier"
+    "access_token",
+    "refresh_token",
+    "client_secret",
+    "password",
+    "authorization",
+    "bearer",
+    "token",
+    "secret",
+    "code_verifier",
 }
 
 
@@ -155,12 +166,15 @@ class Core:
         if provider not in self._adapters:
             if provider == "gmail":
                 from .gmail import GmailAdapter
+
                 self._adapters[provider] = GmailAdapter(self)
             elif provider == "imap":
                 from .imap import create_imap_adapter
+
                 self._adapters[provider] = create_imap_adapter(self)
             elif provider == "graph":
                 from .graph import GraphAdapter
+
                 self._adapters[provider] = GraphAdapter(self)
             else:
                 raise CoreError(f"unsupported provider: {provider}")
@@ -171,7 +185,11 @@ class Core:
         account = self._config.account(alias)
         creds = self._load_credentials(alias)
 
-        if creds.access_token and creds.expires_at and time.time() < creds.expires_at - 60:
+        if (
+            creds.access_token
+            and creds.expires_at
+            and time.time() < creds.expires_at - 60
+        ):
             return creds.access_token
 
         if not creds.refresh_token:
@@ -182,7 +200,9 @@ class Core:
 
         provider: Provider = account.provider  # type: ignore[assignment]
         try:
-            token_resp = refresh(provider, creds.client_id, creds.client_secret, creds.refresh_token)
+            token_resp = refresh(
+                provider, creds.client_id, creds.client_secret, creds.refresh_token
+            )
         except ReauthNeeded:
             raise CoreError(f"refresh token expired for {alias}; re-authenticate")
 
@@ -215,13 +235,15 @@ class Core:
         out = []
         for account in self._config.accounts:
             creds = self._load_credentials(account.alias)
-            out.append({
-                "alias": account.alias,
-                "provider": account.provider,
-                "email": account.email,
-                "has_refresh_token": creds.refresh_token is not None,
-                "has_access_token": creds.access_token is not None,
-            })
+            out.append(
+                {
+                    "alias": account.alias,
+                    "provider": account.provider,
+                    "email": account.email,
+                    "has_refresh_token": creds.refresh_token is not None,
+                    "has_access_token": creds.access_token is not None,
+                }
+            )
         return out
 
     def doctor(self) -> list[dict[str, object]]:
@@ -231,11 +253,31 @@ class Core:
             try:
                 adapter = self._get_adapter(account.provider)
                 profile = adapter.profile(account.alias)
-                out.append({"alias": account.alias, "provider": account.provider, "status": "ok", "profile": profile})
+                out.append(
+                    {
+                        "alias": account.alias,
+                        "provider": account.provider,
+                        "status": "ok",
+                        "profile": profile,
+                    }
+                )
             except ReauthNeeded:
-                out.append({"alias": account.alias, "provider": account.provider, "status": "needs_reauth"})
+                out.append(
+                    {
+                        "alias": account.alias,
+                        "provider": account.provider,
+                        "status": "needs_reauth",
+                    }
+                )
             except Exception as e:
-                out.append({"alias": account.alias, "provider": account.provider, "status": "error", "detail": str(e)[:200]})
+                out.append(
+                    {
+                        "alias": account.alias,
+                        "provider": account.provider,
+                        "status": "error",
+                        "detail": str(e)[:200],
+                    }
+                )
         return out
 
     def search(
@@ -248,7 +290,9 @@ class Core:
     ) -> dict[str, object]:
         """Search messages in an account."""
         adapter = self._get_adapter(self._config.account(account).provider)
-        return adapter.search(account, query, max_results=max_results, page_token=page_token)
+        return adapter.search(
+            account, query, max_results=max_results, page_token=page_token
+        )
 
     def get(self, account: str, message_id: str) -> dict[str, object]:
         """Get a message by ID."""
@@ -292,7 +336,9 @@ class Core:
                 if allowed:
                     break
             if not allowed:
-                self._audit(account, "send_blocked", {"recipients": list(all_recipients)})
+                self._audit(
+                    account, "send_blocked", {"recipients": list(all_recipients)}
+                )
                 raise SendDenied("recipient not in allowlist")
 
         adapter = self._get_adapter(self._config.account(account).provider)
@@ -309,13 +355,17 @@ class Core:
             confirm=confirm,
             attachments=attachments or [],
         )
-        self._audit(account, "send", {
-            "to": to,
-            "cc": cc or [],
-            "subject": subject,
-            "message_id": result.get("id"),
-            "attachments": len(attachments) if attachments else 0,
-        })
+        self._audit(
+            account,
+            "send",
+            {
+                "to": to,
+                "cc": cc or [],
+                "subject": subject,
+                "message_id": result.get("id"),
+                "attachments": len(attachments) if attachments else 0,
+            },
+        )
         return result
 
     def draft(
@@ -346,24 +396,34 @@ class Core:
             references=references or [],
             attachments=attachments or [],
         )
-        self._audit(account, "draft", {
-            "to": to,
-            "cc": cc or [],
-            "subject": subject,
-            "attachments": len(attachments) if attachments else 0,
-            "draft_id": result.get("id"),
-        })
+        self._audit(
+            account,
+            "draft",
+            {
+                "to": to,
+                "cc": cc or [],
+                "subject": subject,
+                "attachments": len(attachments) if attachments else 0,
+                "draft_id": result.get("id"),
+            },
+        )
         return result
 
-    def move(self, account: str, message_id: str, destination: str) -> dict[str, object]:
+    def move(
+        self, account: str, message_id: str, destination: str
+    ) -> dict[str, object]:
         """Move a message to a folder/label."""
         adapter = self._get_adapter(self._config.account(account).provider)
         result = adapter.move(account, message_id, destination)
-        self._audit(account, "move", {
-            "message_id": message_id,
-            "destination": destination,
-            "new_id": result.get("id"),
-        })
+        self._audit(
+            account,
+            "move",
+            {
+                "message_id": message_id,
+                "destination": destination,
+                "new_id": result.get("id"),
+            },
+        )
         return result
 
     def trash(self, account: str, message_id: str) -> dict[str, object]:
@@ -392,11 +452,15 @@ class Core:
         self._audit(account, "delete_folder", {"folder": folder_name})
         return result
 
-    def rename_folder(self, account: str, old_name: str, new_name: str) -> dict[str, object]:
+    def rename_folder(
+        self, account: str, old_name: str, new_name: str
+    ) -> dict[str, object]:
         """Rename a folder."""
         adapter = self._get_adapter(self._config.account(account).provider)
         result = adapter.rename_folder(account, old_name, new_name)
-        self._audit(account, "rename_folder", {"old_name": old_name, "new_name": new_name})
+        self._audit(
+            account, "rename_folder", {"old_name": old_name, "new_name": new_name}
+        )
         return result
 
     def folder_status(self, account: str, folder_name: str) -> dict[str, object]:
@@ -414,34 +478,54 @@ class Core:
         adapter = self._get_adapter(self._config.account(account).provider)
         return adapter.get_special_use_folders(account)
 
-    def set_message_flags(self, account: str, message_ids: list[str], add_flags: list[str] = None, remove_flags: list[str] = None) -> dict[str, object]:
+    def set_message_flags(
+        self,
+        account: str,
+        message_ids: list[str],
+        add_flags: list[str] = None,
+        remove_flags: list[str] = None,
+    ) -> dict[str, object]:
         """Add or remove flags from messages."""
         adapter = self._get_adapter(self._config.account(account).provider)
-        result = adapter.set_message_flags(account, message_ids, add_flags, remove_flags)
-        self._audit(account, "set_flags", {"message_ids": message_ids, "add": add_flags, "remove": remove_flags})
+        result = adapter.set_message_flags(
+            account, message_ids, add_flags, remove_flags
+        )
+        self._audit(
+            account,
+            "set_flags",
+            {"message_ids": message_ids, "add": add_flags, "remove": remove_flags},
+        )
         return result
 
     def mark_read(self, account: str, message_ids: list[str]) -> dict[str, object]:
         """Mark messages as read (add \Seen flag)."""
-        return self.set_message_flags(account, message_ids, add_flags=['\Seen'])
+        return self.set_message_flags(account, message_ids, add_flags=["\Seen"])
 
     def mark_unread(self, account: str, message_ids: list[str]) -> dict[str, object]:
         """Mark messages as unread (remove \Seen flag)."""
-        return self.set_message_flags(account, message_ids, remove_flags=['\Seen'])
+        return self.set_message_flags(account, message_ids, remove_flags=["\Seen"])
 
     def flag_messages(self, account: str, message_ids: list[str]) -> dict[str, object]:
         """Flag messages (add \Flagged flag)."""
-        return self.set_message_flags(account, message_ids, add_flags=['\Flagged'])
+        return self.set_message_flags(account, message_ids, add_flags=["\Flagged"])
 
-    def unflag_messages(self, account: str, message_ids: list[str]) -> dict[str, object]:
+    def unflag_messages(
+        self, account: str, message_ids: list[str]
+    ) -> dict[str, object]:
         """Unflag messages (remove \Flagged flag)."""
-        return self.set_message_flags(account, message_ids, remove_flags=['\Flagged'])
+        return self.set_message_flags(account, message_ids, remove_flags=["\Flagged"])
 
-    def batch_move(self, account: str, message_ids: list[str], destination: str) -> dict[str, object]:
+    def batch_move(
+        self, account: str, message_ids: list[str], destination: str
+    ) -> dict[str, object]:
         """Move multiple messages to a folder."""
         adapter = self._get_adapter(self._config.account(account).provider)
         result = adapter.batch_move(account, message_ids, destination)
-        self._audit(account, "batch_move", {"message_ids": message_ids, "destination": destination})
+        self._audit(
+            account,
+            "batch_move",
+            {"message_ids": message_ids, "destination": destination},
+        )
         return result
 
     def batch_delete(self, account: str, message_ids: list[str]) -> dict[str, object]:
@@ -456,5 +540,3 @@ def _match_glob(pattern: str, value: str) -> bool:
     """Match a value against a glob pattern (supports * and ?), case-insensitive."""
     regex = re.escape(pattern).replace(r"\*", ".*").replace(r"\?", ".")
     return re.fullmatch(regex, value, re.IGNORECASE) is not None
-
-

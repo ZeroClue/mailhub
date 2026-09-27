@@ -49,7 +49,11 @@ class TestSplitAddrs:
         assert split_addrs("user@example.com") == ["user@example.com"]
 
     def test_multiple_addresses(self):
-        assert split_addrs("a@a.com, b@b.com, c@c.com") == ["a@a.com", "b@b.com", "c@c.com"]
+        assert split_addrs("a@a.com, b@b.com, c@c.com") == [
+            "a@a.com",
+            "b@b.com",
+            "c@c.com",
+        ]
 
     def test_handles_display_names(self):
         result = split_addrs('"John Doe" <john@example.com>, jane@example.com')
@@ -130,5 +134,3 @@ class TestBuildMime:
             message_id="<myid@example.com>",
         )
         assert msg["Message-ID"] == "<myid@example.com>"
-
-

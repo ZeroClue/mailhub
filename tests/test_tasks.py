@@ -49,5 +49,3 @@ class TestTaskList:
         lst = TaskList(id="l1", title="Personal", updated=datetime(2024, 1, 1))
         assert lst.id == "l1"
         assert lst.title == "Personal"
-
-

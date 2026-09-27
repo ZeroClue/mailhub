@@ -18,6 +18,7 @@ GRAPH_BASE = "https://graph.microsoft.com/v1.0/me"
 @dataclass
 class _Attachment:
     """Internal representation of an attachment."""
+
     attachment_id: str
     filename: str
     mime_type: str
@@ -95,11 +96,12 @@ class GraphAdapter:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         else:
-                            delay = retry_policy.base_delay * (2 ** attempt)
+                            delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                     response.raise_for_status()
@@ -114,27 +116,32 @@ class GraphAdapter:
                     if headers:
                         request_headers.update(headers)
                     continue
-                if e.response.status_code in (429,) or 500 <= e.response.status_code < 600:
+                if (
+                    e.response.status_code in (429,)
+                    or 500 <= e.response.status_code < 600
+                ):
                     if attempt < retry_policy.max_attempts - 1:
                         retry_after = e.response.headers.get("Retry-After")
                         if retry_after:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         else:
-                            delay = retry_policy.base_delay * (2 ** attempt)
+                            delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                 raise
 
             except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
-                    delay = retry_policy.base_delay * (2 ** attempt)
+                    delay = retry_policy.base_delay * (2**attempt)
                     delay = min(delay, retry_policy.max_delay)
                     import time
+
                     time.sleep(delay)
                     continue
                 raise
@@ -156,19 +163,21 @@ class GraphAdapter:
         """List mail folders (with caching)."""
         if alias in self._folders_cache:
             return self._folders_cache[alias]
-        
+
         response = self._request("GET", f"{GRAPH_BASE}/mailFolders", alias)
         data = response.json()
         folders = []
         for folder in data.get("value", []):
-            folders.append({
-                "id": folder["id"],
-                "name": folder["displayName"],
-                "type": "folder",
-                "child_folder_count": folder.get("childFolderCount"),
-                "total_item_count": folder.get("totalItemCount"),
-                "unread_item_count": folder.get("unreadItemCount"),
-            })
+            folders.append(
+                {
+                    "id": folder["id"],
+                    "name": folder["displayName"],
+                    "type": "folder",
+                    "child_folder_count": folder.get("childFolderCount"),
+                    "total_item_count": folder.get("totalItemCount"),
+                    "unread_item_count": folder.get("unreadItemCount"),
+                }
+            )
         self._folders_cache[alias] = folders
         return folders
 
@@ -197,7 +206,9 @@ class GraphAdapter:
 
         return {
             "messages": messages,
-            "next_page_token": data.get("@odata.nextLink", "").split("$skiptoken=")[-1] if "@odata.nextLink" in data else None,
+            "next_page_token": data.get("@odata.nextLink", "").split("$skiptoken=")[-1]
+            if "@odata.nextLink" in data
+            else None,
         }
 
     def _parse_message(self, data: dict) -> dict[str, object]:
@@ -210,12 +221,28 @@ class GraphAdapter:
             "id": data.get("id"),
             "conversation_id": data.get("conversationId"),
             "from": {"name": from_addr.get("name"), "addr": from_addr.get("address")},
-            "to": [{"name": r.get("emailAddress", {}).get("name"), "addr": r.get("emailAddress", {}).get("address")} for r in to_addrs],
-            "cc": [{"name": r.get("emailAddress", {}).get("name"), "addr": r.get("emailAddress", {}).get("address")} for r in cc_addrs],
+            "to": [
+                {
+                    "name": r.get("emailAddress", {}).get("name"),
+                    "addr": r.get("emailAddress", {}).get("address"),
+                }
+                for r in to_addrs
+            ],
+            "cc": [
+                {
+                    "name": r.get("emailAddress", {}).get("name"),
+                    "addr": r.get("emailAddress", {}).get("address"),
+                }
+                for r in cc_addrs
+            ],
             "subject": data.get("subject", ""),
             "date": data.get("receivedDateTime", ""),
-            "body_text": data.get("body", {}).get("content") if data.get("body", {}).get("contentType") == "text" else "",
-            "body_html": data.get("body", {}).get("content") if data.get("body", {}).get("contentType") == "html" else "",
+            "body_text": data.get("body", {}).get("content")
+            if data.get("body", {}).get("contentType") == "text"
+            else "",
+            "body_html": data.get("body", {}).get("content")
+            if data.get("body", {}).get("contentType") == "html"
+            else "",
             "has_attachments": data.get("hasAttachments", False),
             "importance": data.get("importance"),
             "is_read": data.get("isRead", False),
@@ -312,7 +339,9 @@ class GraphAdapter:
         """Move message to folder (returns new message ID per Graph behavior)."""
         # Use cached folders
         folders = self.folders(alias)
-        dest_folder = next((f for f in folders if f["name"].lower() == destination.lower()), None)
+        dest_folder = next(
+            (f for f in folders if f["name"].lower() == destination.lower()), None
+        )
         if not dest_folder:
             raise ValueError(f"folder not found: {destination}")
 
@@ -329,7 +358,10 @@ class GraphAdapter:
     def trash(self, alias: str, message_id: str) -> dict[str, object]:
         """Move message to Deleted Items (uses cached folders)."""
         folders = self.folders(alias)
-        deleted = next((f for f in folders if f["name"].lower() in ("deleted items", "trash")), None)
+        deleted = next(
+            (f for f in folders if f["name"].lower() in ("deleted items", "trash")),
+            None,
+        )
         if not deleted:
             raise ValueError("Deleted Items folder not found")
         return self.move(alias, message_id, deleted["name"])
@@ -342,5 +374,3 @@ class GraphAdapter:
             alias,
         )
         return response.content
-
-

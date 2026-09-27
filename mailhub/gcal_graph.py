@@ -87,11 +87,12 @@ class GraphCalendarAdapter:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         else:
-                            delay = retry_policy.base_delay * (2 ** attempt)
+                            delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                     response.raise_for_status()
@@ -106,27 +107,32 @@ class GraphCalendarAdapter:
                     if headers:
                         request_headers.update(headers)
                     continue
-                if e.response.status_code in (429,) or 500 <= e.response.status_code < 600:
+                if (
+                    e.response.status_code in (429,)
+                    or 500 <= e.response.status_code < 600
+                ):
                     if attempt < retry_policy.max_attempts - 1:
                         retry_after = e.response.headers.get("Retry-After")
                         if retry_after:
                             try:
                                 delay = float(retry_after)
                             except ValueError:
-                                delay = retry_policy.base_delay * (2 ** attempt)
+                                delay = retry_policy.base_delay * (2**attempt)
                         else:
-                            delay = retry_policy.base_delay * (2 ** attempt)
+                            delay = retry_policy.base_delay * (2**attempt)
                         delay = min(delay, retry_policy.max_delay)
                         import time
+
                         time.sleep(delay)
                         continue
                 raise
 
             except httpx.RequestError:
                 if attempt < retry_policy.max_attempts - 1:
-                    delay = retry_policy.base_delay * (2 ** attempt)
+                    delay = retry_policy.base_delay * (2**attempt)
                     delay = min(delay, retry_policy.max_delay)
                     import time
+
                     time.sleep(delay)
                     continue
                 raise
@@ -156,7 +162,10 @@ class GraphCalendarAdapter:
         return Attendee(
             email=email_addr.get("address", ""),
             name=email_addr.get("name"),
-            status=status_map.get(data.get("status", {}).get("response", "none"), AttendeeStatus.NEEDS_ACTION),
+            status=status_map.get(
+                data.get("status", {}).get("response", "none"),
+                AttendeeStatus.NEEDS_ACTION,
+            ),
             optional=data.get("type") == "optional",
             organizer=False,
             response_requested=True,
@@ -164,7 +173,7 @@ class GraphCalendarAdapter:
 
     def _parse_event(self, data: dict, calendar_id: str) -> Event:
         attendees = tuple(self._parse_attendee(a) for a in data.get("attendees", []))
-        
+
         start = data.get("start", {})
         end = data.get("end", {})
         start_dt = self._parse_datetime(start.get("dateTime"))
@@ -180,7 +189,12 @@ class GraphCalendarAdapter:
             timezone=start.get("timeZone"),
             attendees=attendees,
             location=data.get("location", {}).get("displayName"),
-            recurrence=tuple(data.get("recurrence", {}).get("pattern", {}).get("recurrenceRange", {}).get("recurrenceRange", [])),
+            recurrence=tuple(
+                data.get("recurrence", {})
+                .get("pattern", {})
+                .get("recurrenceRange", {})
+                .get("recurrenceRange", [])
+            ),
             status=EventStatus(data.get("showAs", "confirmed").lower()),
             html_link=data.get("webLink"),
             created=self._parse_datetime(data.get("createdDateTime")),
@@ -234,12 +248,16 @@ class GraphCalendarAdapter:
         events = [self._parse_event(e, calendar_id) for e in data.get("value", [])]
         return {
             "events": events,
-            "next_page_token": data.get("@odata.nextLink", "").split("$skiptoken=")[-1] if "@odata.nextLink" in data else None,
+            "next_page_token": data.get("@odata.nextLink", "").split("$skiptoken=")[-1]
+            if "@odata.nextLink" in data
+            else None,
         }
 
     def get_event(self, alias: str, calendar_id: str, event_id: str) -> Event:
         """Get a single event."""
-        response = self._request("GET", f"{GRAPH_BASE}/calendars/{calendar_id}/events/{event_id}", alias)
+        response = self._request(
+            "GET", f"{GRAPH_BASE}/calendars/{calendar_id}/events/{event_id}", alias
+        )
         data = response.json()
         return self._parse_event(data, calendar_id)
 
@@ -248,11 +266,19 @@ class GraphCalendarAdapter:
         schedules = [{"scheduleId": cal_id} for cal_id in request.calendar_ids]
         body = {
             "schedules": schedules,
-            "startTime": {"dateTime": request.time_min.isoformat() + "Z", "timeZone": "UTC"},
-            "endTime": {"dateTime": request.time_max.isoformat() + "Z", "timeZone": "UTC"},
+            "startTime": {
+                "dateTime": request.time_min.isoformat() + "Z",
+                "timeZone": "UTC",
+            },
+            "endTime": {
+                "dateTime": request.time_max.isoformat() + "Z",
+                "timeZone": "UTC",
+            },
             "availabilityViewInterval": 30,
         }
-        response = self._request("POST", f"{GRAPH_BASE}/getSchedule", alias, json_data=body)
+        response = self._request(
+            "POST", f"{GRAPH_BASE}/getSchedule", alias, json_data=body
+        )
         data = response.json()
         calendars = {}
         for sched in data.get("value", []):
@@ -324,7 +350,9 @@ class GraphCalendarAdapter:
         if not confirm and event.attendees:
             raise ValueError("delete event with attendees requires confirm=True")
 
-        self._request("DELETE", f"{GRAPH_BASE}/calendars/{calendar_id}/events/{event_id}", alias)
+        self._request(
+            "DELETE", f"{GRAPH_BASE}/calendars/{calendar_id}/events/{event_id}", alias
+        )
 
     def _event_to_body(self, event: Event) -> dict[str, Any]:
         body: dict[str, Any] = {
@@ -350,5 +378,3 @@ class GraphCalendarAdapter:
             # Graph recurrence is complex - simplified
             pass
         return body
-
-

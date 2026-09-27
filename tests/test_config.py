@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from mailhub.config import ConfigError, config_path, initialize_config, load_config, parse_config
+from mailhub.config import (
+    ConfigError,
+    config_path,
+    initialize_config,
+    load_config,
+    parse_config,
+)
 
 
 def test_config_path_uses_injected_base(tmp_path):
@@ -29,17 +35,27 @@ def test_load_config_accepts_supported_provider_capabilities(tmp_path):
     config = load_config(path)
 
     assert config.account("personal").provider == "graph"
-    assert config.account("personal").capabilities == frozenset({"mail", "calendar", "tasks"})
+    assert config.account("personal").capabilities == frozenset(
+        {"mail", "calendar", "tasks"}
+    )
 
 
 def test_config_rejects_unsupported_provider_capability():
     with pytest.raises(ConfigError, match="does not support: tasks"):
-        parse_config({"accounts": {"inbox": {"provider": "imap", "capabilities": ["mail", "tasks"]}}})
+        parse_config(
+            {
+                "accounts": {
+                    "inbox": {"provider": "imap", "capabilities": ["mail", "tasks"]}
+                }
+            }
+        )
 
 
 def test_config_rejects_unknown_provider():
     with pytest.raises(ConfigError, match="unsupported provider"):
-        parse_config({"accounts": {"inbox": {"provider": "exchange", "capabilities": ["mail"]}}})
+        parse_config(
+            {"accounts": {"inbox": {"provider": "exchange", "capabilities": ["mail"]}}}
+        )
 
 
 def test_config_rejects_empty_capabilities():

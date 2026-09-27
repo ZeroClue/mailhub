@@ -23,7 +23,9 @@ GOOGLE_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
 
 GRAPH_AUTH_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
 GRAPH_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-GRAPH_SCOPE = "offline_access Mail.ReadWrite Mail.Send User.Read MailboxSettings.ReadWrite"
+GRAPH_SCOPE = (
+    "offline_access Mail.ReadWrite Mail.Send User.Read MailboxSettings.ReadWrite"
+)
 
 
 class ReauthNeeded(Exception):
@@ -33,6 +35,7 @@ class ReauthNeeded(Exception):
 @dataclass(frozen=True)
 class PKCE:
     """PKCE code verifier and challenge pair."""
+
     code_verifier: str
     code_challenge: str
 
@@ -40,6 +43,7 @@ class PKCE:
 @dataclass(frozen=True)
 class AuthState:
     """OAuth authorization state with PKCE and CSRF protection."""
+
     state: str
     provider: Provider
     alias: str
@@ -63,7 +67,9 @@ def generate_pkce() -> PKCE:
     return PKCE(code_verifier=verifier, code_challenge=_code_challenge(verifier))
 
 
-def auth_url(provider: Provider, client_id: str, email: str, alias: str) -> tuple[str, AuthState]:
+def auth_url(
+    provider: Provider, client_id: str, email: str, alias: str
+) -> tuple[str, AuthState]:
     """
     Generate an authorization URL with PKCE and random state.
 
@@ -215,4 +221,6 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
 GRAPH_AUTH_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
 GRAPH_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-GRAPH_SCOPE = "offline_access Mail.ReadWrite Mail.Send User.Read MailboxSettings.ReadWrite"
+GRAPH_SCOPE = (
+    "offline_access Mail.ReadWrite Mail.Send User.Read MailboxSettings.ReadWrite"
+)

@@ -47,6 +47,7 @@ class Account:
 @dataclass(frozen=True)
 class SendPolicy:
     """Send policy configuration."""
+
     allowlist: tuple[str, ...] = ()
     allow_anywhere: bool = False
 
@@ -65,7 +66,9 @@ class Config:
                 return account
         raise ConfigError(f"unknown account alias: {alias}")
 
-    def provider_config(self, provider: str, alias: str | None = None) -> dict[str, str]:
+    def provider_config(
+        self, provider: str, alias: str | None = None
+    ) -> dict[str, str]:
         """Get client_id and client_secret for a provider (optionally for a specific account)."""
         # First check account-level config if alias provided
         if alias:
@@ -75,7 +78,7 @@ class Config:
                     "client_id": account_raw.get("client_id", ""),
                     "client_secret": account_raw.get("client_secret", ""),
                 }
-        
+
         # Fall back to provider-level config
         raw_provider = self._raw.get(provider, {})
         return {
@@ -116,7 +119,7 @@ def parse_config(data: dict[str, Any]) -> Config:
         allowlist=tuple(send_policy_raw.get("allowlist", [])),
         allow_anywhere=send_policy_raw.get("allow_anywhere", False),
     )
-    
+
     raw_accounts = data.get("accounts", {})
     if not isinstance(raw_accounts, dict):
         raise ConfigError("accounts must be a TOML table")
@@ -131,10 +134,14 @@ def parse_config(data: dict[str, Any]) -> Config:
         aliases.add(alias)
         if not isinstance(raw_account, dict):
             raise ConfigError(f"account {alias} must be a TOML table")
-        provider = _require_string(raw_account.get("provider"), f"account {alias}.provider")
+        provider = _require_string(
+            raw_account.get("provider"), f"account {alias}.provider"
+        )
         if provider not in PROVIDER_CAPABILITIES:
             supported = ", ".join(sorted(PROVIDER_CAPABILITIES))
-            raise ConfigError(f"account {alias} uses unsupported provider {provider!r}; supported: {supported}")
+            raise ConfigError(
+                f"account {alias} uses unsupported provider {provider!r}; supported: {supported}"
+            )
         raw_capabilities = raw_account.get("capabilities")
         if not isinstance(raw_capabilities, list) or not raw_capabilities:
             raise ConfigError(f"account {alias}.capabilities must be a non-empty array")
@@ -144,23 +151,27 @@ def parse_config(data: dict[str, Any]) -> Config:
         unsupported = capabilities - PROVIDER_CAPABILITIES[provider]
         if unsupported:
             items = ", ".join(sorted(unsupported))
-            raise ConfigError(f"account {alias} provider {provider!r} does not support: {items}")
-        accounts.append(Account(
-            alias=alias,
-            provider=provider,
-            capabilities=capabilities,
-            email=raw_account.get("email", ""),
-            imap_host=raw_account.get("imap_host", ""),
-            imap_port=raw_account.get("imap_port", 993),
-            imap_use_ssl=raw_account.get("imap_use_ssl", True),
-            imap_use_starttls=raw_account.get("imap_use_starttls", False),
-            smtp_host=raw_account.get("smtp_host", ""),
-            smtp_port=raw_account.get("smtp_port", 587),
-            smtp_use_ssl=raw_account.get("smtp_use_ssl", False),
-            smtp_use_starttls=raw_account.get("smtp_use_starttls", True),
-            auth_method=raw_account.get("auth_method", "plain"),
-        ))
-    
+            raise ConfigError(
+                f"account {alias} provider {provider!r} does not support: {items}"
+            )
+        accounts.append(
+            Account(
+                alias=alias,
+                provider=provider,
+                capabilities=capabilities,
+                email=raw_account.get("email", ""),
+                imap_host=raw_account.get("imap_host", ""),
+                imap_port=raw_account.get("imap_port", 993),
+                imap_use_ssl=raw_account.get("imap_use_ssl", True),
+                imap_use_starttls=raw_account.get("imap_use_starttls", False),
+                smtp_host=raw_account.get("smtp_host", ""),
+                smtp_port=raw_account.get("smtp_port", 587),
+                smtp_use_ssl=raw_account.get("smtp_use_ssl", False),
+                smtp_use_starttls=raw_account.get("smtp_use_starttls", True),
+                auth_method=raw_account.get("auth_method", "plain"),
+            )
+        )
+
     # Create config with raw data
     config = Config(accounts=tuple(accounts), send_policy=send_policy, _raw=data)
     return config
@@ -173,7 +184,9 @@ def load_config(path: Path | None = None) -> Config:
         with selected.open("rb") as file:
             data = tomllib.load(file)
     except FileNotFoundError as error:
-        raise ConfigError(f"configuration not found: {selected}; run 'mailhub init'") from error
+        raise ConfigError(
+            f"configuration not found: {selected}; run 'mailhub init'"
+        ) from error
     except tomllib.TOMLDecodeError as error:
         raise ConfigError(f"invalid TOML in {selected}: {error}") from error
     if not isinstance(data, dict):  # defensive; tomllib currently guarantees this
@@ -266,7 +279,7 @@ def _atomic_write(path: Path, content: str) -> None:
     except (PermissionError, OSError):
         # Ignore permission errors for parent dirs we don't own (e.g., /tmp in tests)
         pass
-    
+
     with tempfile.NamedTemporaryFile(
         mode="w",
         encoding="utf-8",
@@ -315,14 +328,14 @@ def _serialize_account(account: Account) -> dict[str, Any]:
 def save_config(config: Config, path: Path | None = None) -> Path:
     """Save a Config object to a TOML file atomically with owner-only permissions."""
     selected = path or config_path()
-    
+
     # Build the TOML structure preserving non-account sections
     raw = dict(config._raw)
     raw_accounts = {}
     for account in config.accounts:
         raw_accounts[account.alias] = _serialize_account(account)
     raw["accounts"] = raw_accounts
-    
+
     # Generate TOML content
     lines = []
     # Write provider sections first (gmail, graph, etc.)
@@ -337,7 +350,7 @@ def save_config(config: Config, path: Path | None = None) -> Path:
                     else:
                         lines.append(f"{key} = {value}")
                 lines.append("")
-    
+
     # Write accounts
     lines.append("[accounts]")
     for alias, account_data in raw_accounts.items():
@@ -356,7 +369,7 @@ def save_config(config: Config, path: Path | None = None) -> Path:
             elif isinstance(value, int):
                 lines.append(f"  {key} = {value}")
         lines.append("")
-    
+
     content = "\n".join(lines)
     _atomic_write(selected, content)
     return selected
@@ -374,12 +387,12 @@ def add_account(
     if provider not in PROVIDER_CAPABILITIES:
         supported = ", ".join(sorted(PROVIDER_CAPABILITIES))
         raise ConfigError(f"unsupported provider {provider!r}; supported: {supported}")
-    
+
     # Check for duplicate alias
     for account in config.accounts:
         if account.alias == alias:
             raise ConfigError(f"duplicate account alias: {alias}")
-    
+
     # Validate capabilities
     if not capabilities:
         raise ConfigError("capabilities must be a non-empty array")
@@ -388,18 +401,20 @@ def add_account(
     if unsupported:
         items = ", ".join(sorted(unsupported))
         raise ConfigError(f"provider {provider!r} does not support: {items}")
-    
+
     # Create new account
-    new_account = Account(alias=alias, provider=provider, capabilities=caps_set, email=email)
+    new_account = Account(
+        alias=alias, provider=provider, capabilities=caps_set, email=email
+    )
     new_accounts = config.accounts + (new_account,)
-    
+
     # Update raw data with email
     new_raw = config._raw.copy()
     accounts_raw = new_raw.setdefault("accounts", {})
     accounts_raw[alias] = {"provider": provider, "capabilities": list(caps_set)}
     if email:
         accounts_raw[alias]["email"] = email
-    
+
     # Create new config with updated accounts
     new_config = Config(accounts=new_accounts, _raw=new_raw)
     save_config(new_config, path)
@@ -411,7 +426,7 @@ def remove_account(config: Config, alias: str, path: Path | None = None) -> Conf
     new_accounts = tuple(a for a in config.accounts if a.alias != alias)
     if len(new_accounts) == len(config.accounts):
         raise ConfigError(f"account {alias} not found")
-    
+
     new_config = Config(accounts=new_accounts, _raw=config._raw)
     save_config(new_config, path)
     return new_config
@@ -420,7 +435,7 @@ def remove_account(config: Config, alias: str, path: Path | None = None) -> Conf
 def validate_config_structure(data: dict[str, Any]) -> list[str]:
     """Validate config structure and return list of warnings (non-fatal)."""
     warnings = []
-    
+
     # Check for provider sections
     for provider in ("gmail", "graph"):
         if provider in data:
@@ -430,7 +445,7 @@ def validate_config_structure(data: dict[str, Any]) -> list[str]:
                     warnings.append(f"provider {provider} missing client_id")
                 if provider == "gmail" and not provider_data.get("client_secret"):
                     warnings.append("provider gmail missing client_secret")
-    
+
     return warnings
 
 
@@ -438,15 +453,15 @@ def validate_provider_credentials(config: Config) -> list[str]:
     """Validate that required provider credentials exist. Returns list of errors."""
     errors = []
     providers_seen = set()
-    
+
     for account in config.accounts:
         providers_seen.add(account.provider)
-    
+
     for provider in providers_seen:
         provider_cfg = config.provider_config(provider)
         if not provider_cfg.get("client_id"):
             errors.append(f"provider {provider} missing client_id")
         if provider == "gmail" and not provider_cfg.get("client_secret"):
             errors.append("provider gmail missing client_secret")
-    
+
     return errors

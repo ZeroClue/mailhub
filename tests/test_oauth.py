@@ -26,7 +26,9 @@ class TestPKCE:
 
     def test_code_challenge_is_deterministic_for_same_verifier(self):
         pkce1 = generate_pkce()
-        pkce2 = PKCE(code_verifier=pkce1.code_verifier, code_challenge=pkce1.code_challenge)
+        pkce2 = PKCE(
+            code_verifier=pkce1.code_verifier, code_challenge=pkce1.code_challenge
+        )
         assert pkce1.code_challenge == pkce2.code_challenge
 
 
@@ -50,7 +52,10 @@ class TestAuthURL:
         url, state = auth_url("graph", "client456", "user@outlook.com", "work")
         assert "login.microsoftonline.com" in url
         assert "client_id=client456" in url
-        assert "scope=offline_access+Mail.ReadWrite+Mail.Send+User.Read+MailboxSettings.ReadWrite" in url
+        assert (
+            "scope=offline_access+Mail.ReadWrite+Mail.Send+User.Read+MailboxSettings.ReadWrite"
+            in url
+        )
         assert state.provider == "graph"
         assert state.alias == "work"
 
@@ -75,19 +80,25 @@ class TestParseRedirect:
 class TestCheckState:
     def test_valid_state_returns_pkce(self):
         pkce = generate_pkce()
-        stored = AuthState(state="state123", provider="gmail", alias="personal", pkce=pkce)
+        stored = AuthState(
+            state="state123", provider="gmail", alias="personal", pkce=pkce
+        )
         result = check_state("state123", "gmail", "personal", stored)
         assert result == pkce
 
     def test_invalid_state_raises(self):
         pkce = generate_pkce()
-        stored = AuthState(state="state123", provider="gmail", alias="personal", pkce=pkce)
+        stored = AuthState(
+            state="state123", provider="gmail", alias="personal", pkce=pkce
+        )
         with pytest.raises(ValueError, match="state mismatch"):
             check_state("wrong", "gmail", "personal", stored)
 
     def test_provider_mismatch_raises(self):
         pkce = generate_pkce()
-        stored = AuthState(state="state123", provider="graph", alias="personal", pkce=pkce)
+        stored = AuthState(
+            state="state123", provider="graph", alias="personal", pkce=pkce
+        )
         with pytest.raises(ValueError, match="provider mismatch"):
             check_state("state123", "gmail", "personal", stored)
 
@@ -117,5 +128,3 @@ class TestRefresh:
 
     def test_refresh_raises_reauth_needed_on_401(self):
         assert ReauthNeeded is not None
-
-

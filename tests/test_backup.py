@@ -26,7 +26,9 @@ def test_backup_config_copies_file(tmp_path: Path) -> None:
     # Create a config file
     config_dir = tmp_path / "config"
     config_file = initialize_config(config_dir / "config.toml")
-    config_file.write_text("[accounts.test]\nprovider = \"gmail\"\ncapabilities = [\"mail\"]\n")
+    config_file.write_text(
+        '[accounts.test]\nprovider = "gmail"\ncapabilities = ["mail"]\n'
+    )
 
     # Backup
     output = tmp_path / "backup" / "config.toml"
@@ -50,17 +52,19 @@ def test_backup_state_copies_file_and_warns(tmp_path: Path) -> None:
     state_dir = tmp_path / "state"
     store = CredentialStore(state_dir / "credentials.json")
     store.initialize()
-    store.save({
-        "accounts": {
-            "test": {
-                "access_token": "access-secret",
-                "refresh_token": "refresh-secret",
-                "expires_at": 9999999999,
-                "client_id": "client-id",
-                "client_secret": "client-secret",
+    store.save(
+        {
+            "accounts": {
+                "test": {
+                    "access_token": "access-secret",
+                    "refresh_token": "refresh-secret",
+                    "expires_at": 9999999999,
+                    "client_id": "client-id",
+                    "client_secret": "client-secret",
+                }
             }
         }
-    })
+    )
 
     # Backup - should warn about secrets
     output = tmp_path / "backup" / "credentials.json"
@@ -85,7 +89,9 @@ def test_backup_state_missing_raises(tmp_path: Path) -> None:
 def test_backup_audit_copies_file(tmp_path: Path) -> None:
     # Create audit file
     audit_file = tmp_path / "audit.jsonl"
-    audit_file.write_text('{"timestamp": "2025-01-01T00:00:00Z", "account": "test", "operation": "send", "details": {}}\n')
+    audit_file.write_text(
+        '{"timestamp": "2025-01-01T00:00:00Z", "account": "test", "operation": "send", "details": {}}\n'
+    )
 
     output = tmp_path / "backup" / "audit.jsonl"
     backup_audit(output, audit_file)
@@ -104,7 +110,9 @@ def test_backup_all_creates_timestamped_archive(tmp_path: Path) -> None:
     # Setup config, state, audit
     config_dir = tmp_path / "config"
     config_file = initialize_config(config_dir / "config.toml")
-    config_file.write_text("[accounts.test]\nprovider = \"gmail\"\ncapabilities = [\"mail\"]\n")
+    config_file.write_text(
+        '[accounts.test]\nprovider = "gmail"\ncapabilities = ["mail"]\n'
+    )
 
     state_dir = tmp_path / "state"
     store = CredentialStore(state_dir / "credentials.json")
@@ -112,7 +120,9 @@ def test_backup_all_creates_timestamped_archive(tmp_path: Path) -> None:
     store.save({"accounts": {"test": {"refresh_token": "secret"}}})
 
     audit_file = state_dir / "audit.jsonl"
-    audit_file.write_text('{"timestamp": "2025-01-01T00:00:00Z", "account": "test", "operation": "send", "details": {}}\n')
+    audit_file.write_text(
+        '{"timestamp": "2025-01-01T00:00:00Z", "account": "test", "operation": "send", "details": {}}\n'
+    )
 
     # Backup all
     output_dir = tmp_path / "backups"
@@ -140,7 +150,9 @@ def test_backup_all_partial_sources(tmp_path: Path) -> None:
     # Only config exists
     config_dir = tmp_path / "config"
     config_file = initialize_config(config_dir / "config.toml")
-    config_file.write_text("[accounts.test]\nprovider = \"gmail\"\ncapabilities = [\"mail\"]\n")
+    config_file.write_text(
+        '[accounts.test]\nprovider = "gmail"\ncapabilities = ["mail"]\n'
+    )
 
     output_dir = tmp_path / "backups"
     with warnings.catch_warnings():
@@ -158,7 +170,7 @@ def test_backup_all_partial_sources(tmp_path: Path) -> None:
 def test_restore_config_validates_toml(tmp_path: Path) -> None:
     # Valid config
     valid = tmp_path / "valid.toml"
-    valid.write_text("[accounts.test]\nprovider = \"gmail\"\ncapabilities = [\"mail\"]\n")
+    valid.write_text('[accounts.test]\nprovider = "gmail"\ncapabilities = ["mail"]\n')
 
     dest = tmp_path / "restored" / "config.toml"
     restore_config(valid, dest)
@@ -184,17 +196,21 @@ def test_restore_config_missing_raises(tmp_path: Path) -> None:
 def test_restore_state_atomic_write_via_credentialstore(tmp_path: Path) -> None:
     # Create a backup file
     backup = tmp_path / "backup.json"
-    backup.write_text(json.dumps({
-        "accounts": {
-            "test": {
-                "access_token": "access",
-                "refresh_token": "refresh",
-                "expires_at": 1234567890,
-                "client_id": "id",
-                "client_secret": "secret",
+    backup.write_text(
+        json.dumps(
+            {
+                "accounts": {
+                    "test": {
+                        "access_token": "access",
+                        "refresh_token": "refresh",
+                        "expires_at": 1234567890,
+                        "client_id": "id",
+                        "client_secret": "secret",
+                    }
+                }
             }
-        }
-    }))
+        )
+    )
 
     dest = tmp_path / "state" / "credentials.json"
     restore_state(backup, dest)
@@ -252,11 +268,7 @@ def test_restore_audit_validates_jsonl(tmp_path: Path) -> None:
 
 def test_restore_audit_invalid_jsonl_raises(tmp_path: Path) -> None:
     invalid = tmp_path / "invalid.jsonl"
-    invalid.write_text(
-        '{"valid": "line"}\n'
-        'not json\n'
-        '{"another": "line"}\n'
-    )
+    invalid.write_text('{"valid": "line"}\nnot json\n{"another": "line"}\n')
 
     with pytest.raises(ValueError, match="line 2"):
         restore_audit(invalid, tmp_path / "dest.jsonl")
@@ -271,7 +283,9 @@ def test_owner_only_permissions_on_backup_outputs(tmp_path: Path) -> None:
     # Setup minimal sources
     config_dir = tmp_path / "config"
     config_file = initialize_config(config_dir / "config.toml")
-    config_file.write_text("[accounts.test]\nprovider = \"gmail\"\ncapabilities = [\"mail\"]\n")
+    config_file.write_text(
+        '[accounts.test]\nprovider = "gmail"\ncapabilities = ["mail"]\n'
+    )
 
     state_dir = tmp_path / "state"
     store = CredentialStore(state_dir / "credentials.json")

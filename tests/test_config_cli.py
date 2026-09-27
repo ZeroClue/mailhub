@@ -1,6 +1,5 @@
 """Tests for mailhub config subcommands."""
 
-
 import pytest
 
 from mailhub.cli import main
@@ -61,13 +60,24 @@ class TestConfigAddAccount:
             "[accounts]\n"
         )
 
-        assert main([
-            "config", "add-account",
-            "--config", str(config),
-            "--alias", "test",
-            "--provider", "gmail",
-            "--capabilities", "mail", "contacts",
-        ]) == 0
+        assert (
+            main(
+                [
+                    "config",
+                    "add-account",
+                    "--config",
+                    str(config),
+                    "--alias",
+                    "test",
+                    "--provider",
+                    "gmail",
+                    "--capabilities",
+                    "mail",
+                    "contacts",
+                ]
+            )
+            == 0
+        )
 
         content = config.read_text()
         assert "test" in content
@@ -85,13 +95,23 @@ class TestConfigAddAccount:
             'capabilities = ["mail"]\n'
         )
 
-        assert main([
-            "config", "add-account",
-            "--config", str(config),
-            "--alias", "personal",
-            "--provider", "gmail",
-            "--capabilities", "mail",
-        ]) == 1
+        assert (
+            main(
+                [
+                    "config",
+                    "add-account",
+                    "--config",
+                    str(config),
+                    "--alias",
+                    "personal",
+                    "--provider",
+                    "gmail",
+                    "--capabilities",
+                    "mail",
+                ]
+            )
+            == 1
+        )
 
         err = capsys.readouterr().err
         assert "duplicate account alias" in err
@@ -100,13 +120,23 @@ class TestConfigAddAccount:
         config = tmp_path / "config.toml"
         config.write_text("[accounts]\n")
 
-        assert main([
-            "config", "add-account",
-            "--config", str(config),
-            "--alias", "test",
-            "--provider", "exchange",
-            "--capabilities", "mail",
-        ]) == 1
+        assert (
+            main(
+                [
+                    "config",
+                    "add-account",
+                    "--config",
+                    str(config),
+                    "--alias",
+                    "test",
+                    "--provider",
+                    "exchange",
+                    "--capabilities",
+                    "mail",
+                ]
+            )
+            == 1
+        )
 
         err = capsys.readouterr().err
         assert "unsupported provider" in err
@@ -121,13 +151,23 @@ class TestConfigAddAccount:
             "[accounts]\n"
         )
 
-        assert main([
-            "config", "add-account",
-            "--config", str(config),
-            "--alias", "test",
-            "--provider", "gmail",
-            "--capabilities", "tasks",
-        ]) == 1
+        assert (
+            main(
+                [
+                    "config",
+                    "add-account",
+                    "--config",
+                    str(config),
+                    "--alias",
+                    "test",
+                    "--provider",
+                    "gmail",
+                    "--capabilities",
+                    "tasks",
+                ]
+            )
+            == 1
+        )
 
         err = capsys.readouterr().err
         assert "does not support" in err
@@ -137,22 +177,38 @@ class TestConfigAddAccount:
         config.write_text("[accounts]\n")
 
         # Missing capabilities - interactive mode not implemented
-        assert main([
-            "config", "add-account",
-            "--config", str(config),
-            "--alias", "test",
-            "--provider", "gmail",
-        ]) == 1
+        assert (
+            main(
+                [
+                    "config",
+                    "add-account",
+                    "--config",
+                    str(config),
+                    "--alias",
+                    "test",
+                    "--provider",
+                    "gmail",
+                ]
+            )
+            == 1
+        )
 
     def test_add_account_missing_args_fails(self, tmp_path):
         config = tmp_path / "config.toml"
         config.write_text("[accounts]\n")
 
         # Missing all required args
-        assert main([
-            "config", "add-account",
-            "--config", str(config),
-        ]) == 1
+        assert (
+            main(
+                [
+                    "config",
+                    "add-account",
+                    "--config",
+                    str(config),
+                ]
+            )
+            == 1
+        )
 
 
 class TestConfigValidate:
@@ -190,9 +246,7 @@ class TestConfigValidate:
     def test_validate_missing_provider_credentials(self, tmp_path, capsys):
         config = tmp_path / "config.toml"
         config.write_text(
-            "[accounts.personal]\n"
-            'provider = "gmail"\n'
-            'capabilities = ["mail"]\n'
+            '[accounts.personal]\nprovider = "gmail"\ncapabilities = ["mail"]\n'
         )
 
         assert main(["config", "validate", "--config", str(config)]) == 1
@@ -219,7 +273,9 @@ class TestConfigValidate:
 
     def test_validate_invalid_account_structure(self, tmp_path, capsys):
         config = tmp_path / "config.toml"
-        config.write_text("[accounts.bad]\nprovider = 'exchange'\ncapabilities = ['mail']\n")
+        config.write_text(
+            "[accounts.bad]\nprovider = 'exchange'\ncapabilities = ['mail']\n"
+        )
 
         assert main(["config", "validate", "--config", str(config)]) == 1
 
@@ -254,7 +310,9 @@ class TestConfigRemoveAccount:
             'capabilities = ["mail"]\n'
         )
 
-        assert main(["config", "remove-account", "personal", "--config", str(config)]) == 0
+        assert (
+            main(["config", "remove-account", "personal", "--config", str(config)]) == 0
+        )
 
         content = config.read_text()
         assert "personal" not in content
@@ -263,14 +321,19 @@ class TestConfigRemoveAccount:
         config = tmp_path / "config.toml"
         config.write_text("[accounts]\n")
 
-        assert main(["config", "remove-account", "nonexistent", "--config", str(config)]) == 1
+        assert (
+            main(["config", "remove-account", "nonexistent", "--config", str(config)])
+            == 1
+        )
 
         err = capsys.readouterr().err
         assert "account nonexistent not found" in err
 
 
 class TestConfigSetupProviders:
-    def test_setup_google_requires_both_id_and_secret(self, tmp_path, capsys, monkeypatch):
+    def test_setup_google_requires_both_id_and_secret(
+        self, tmp_path, capsys, monkeypatch
+    ):
         config = tmp_path / "config.toml"
         config.write_text("[accounts]\n")
 
@@ -304,6 +367,7 @@ class TestConfigAtomicWrites:
         config.chmod(0o600)
 
         from mailhub.config import add_account, load_config
+
         cfg = load_config(config)
         add_account(cfg, "new", "gmail", ["mail"], config)
         config.chmod(0o600)
@@ -320,6 +384,7 @@ class TestConfigAtomicWrites:
         )
 
         from mailhub.config import add_account, load_config
+
         cfg = load_config(config)
         add_account(cfg, "new", "gmail", ["mail"], config)
 

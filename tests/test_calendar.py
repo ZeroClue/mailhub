@@ -98,5 +98,3 @@ class TestFreeBusy:
         resp = FreeBusyResponse(calendars={"cal1": periods})
         assert "cal1" in resp.calendars
         assert len(resp.calendars["cal1"]) == 1
-
-

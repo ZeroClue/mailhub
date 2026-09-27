@@ -56,8 +56,8 @@ class TestContact:
 
 class TestContactGroup:
     def test_group_creation(self):
-        g = ContactGroup(id="g1", name="Family", member_ids=("c1", "c2"), member_count=2)
+        g = ContactGroup(
+            id="g1", name="Family", member_ids=("c1", "c2"), member_count=2
+        )
         assert g.name == "Family"
         assert g.member_count == 2
-
-
