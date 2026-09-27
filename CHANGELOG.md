@@ -1,3 +1,15 @@
+## [0.1.20] - 2026-09-27
+
+### Added
+- **MCP Resources** — Full resource support:
+  - `resources/list` — Folders as resources with `mailhub://{alias}/folders/{name}` URIs
+  - `resources/read` — Fetch folder status, messages, search results by URI
+  - `resources/templates` — URI templates for folders, messages, search
+- **Resource decorators** — `@server.resource` for dynamic resource access
+
+### Changed
+- **Version bump to 0.1.20** — All version references synchronized
+
 ## [0.1.19] - 2026-09-27
 
 ### Added

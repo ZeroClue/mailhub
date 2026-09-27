@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Optional
+import json
 
 from mcp.server.fastmcp import FastMCP as _FastMCP
+from mcp.types import Resource, ResourceTemplate
 
 from . import __version__
 from .config import ConfigError, load_config
@@ -201,6 +203,82 @@ def mailhub_batch_delete(account, message_ids):
     return c.batch_delete(account, message_ids)
 
 
+# --- Resource functions ---
+
+def list_resources() -> list[Resource]:
+    """List all available resources (folders for each account)."""
+    c = _core_holder["core"]
+    if c is None:
+        return []
+    
+    resources = []
+    for account in c.accounts_status():
+        alias = account["alias"]
+        try:
+            folders = c.folders(alias)
+            for folder in folders:
+                resources.append(Resource(
+                    uri=f"mailhub://{alias}/folders/{folder['name']}",
+                    name=f"{alias}: {folder['name']}",
+                    description=f"Folder {folder['name']} in account {alias}",
+                    mimeType="application/json",
+                ))
+        except Exception:
+            continue
+    return resources
+
+
+def read_resource(uri: str) -> str:
+    """Read a resource by URI."""
+    # Parse mailhub://{alias}/folders/{folder_name}
+    if not uri.startswith("mailhub://"):
+        raise ValueError(f"Unsupported URI scheme: {uri}")
+    
+    path = uri[len("mailhub://"):]
+    parts = path.split("/")
+    if len(parts) < 3 or parts[1] != "folders":
+        raise ValueError(f"Invalid resource URI: {uri}")
+    
+    alias = parts[0]
+    folder_name = "/".join(parts[2:])  # Handle nested folders
+    
+    c = get_core()
+    try:
+        # Get folder status
+        status = c.folder_status(alias, folder_name)
+        return json.dumps({
+            "account": alias,
+            "folder": folder_name,
+            "status": status,
+        }, indent=2)
+    except Exception as e:
+        raise ValueError(f"Failed to read resource: {e}")
+
+
+def list_resource_templates() -> list[ResourceTemplate]:
+    """List resource templates for dynamic resources."""
+    return [
+        ResourceTemplate(
+            uriTemplate="mailhub://{account}/folders/{folder}",
+            name="Mailhub Folder",
+            description="Access a specific folder in an account",
+            mimeType="application/json",
+        ),
+        ResourceTemplate(
+            uriTemplate="mailhub://{account}/messages/{message_id}",
+            name="Mailhub Message",
+            description="Access a specific message by ID",
+            mimeType="application/json",
+        ),
+        ResourceTemplate(
+            uriTemplate="mailhub://{account}/search?q={query}",
+            name="Mailhub Search",
+            description="Search messages in an account",
+            mimeType="application/json",
+        ),
+    ]
+
+
 def create_server(*, mode="ro", config_file=None):
     """Create an MCP server with specified mode."""
     if mode not in ("ro", "full"):
@@ -379,6 +457,41 @@ def create_server(*, mode="ro", config_file=None):
         def mailhub_batch_delete_tool(account, message_ids):
             c = get_core()
             return c.batch_delete(account, message_ids)
+
+    # Register resources
+    @server.resource("mailhub://{account}/folders/{folder}")
+    def mailhub_folder_resource(account: str, folder: str):
+        """Access a specific folder in an account."""
+        c = get_core()
+        try:
+            status = c.folder_status(account, folder)
+            return json.dumps({
+                "account": account,
+                "folder": folder,
+                "status": status,
+            }, indent=2)
+        except Exception as e:
+            raise ValueError(f"Failed to read folder: {e}")
+
+    @server.resource("mailhub://{account}/messages/{message_id}")
+    def mailhub_message_resource(account: str, message_id: str):
+        """Access a specific message by ID."""
+        c = get_core()
+        try:
+            message = c.get(account, message_id)
+            return json.dumps(message, indent=2)
+        except Exception as e:
+            raise ValueError(f"Failed to read message: {e}")
+
+    @server.resource("mailhub://{account}/search?q={query}")
+    def mailhub_search_resource(account: str, query: str):
+        """Search messages in an account."""
+        c = get_core()
+        try:
+            result = c.search(account, query, max_results=50)
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            raise ValueError(f"Failed to search: {e}")
 
     return server
 
