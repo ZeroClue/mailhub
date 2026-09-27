@@ -355,6 +355,8 @@ def handle_config_setup_microsoft(args, config_file: Path) -> int:
     return 0
 
 
+
+
 def handle_config_remove_account(args, config_file: Path) -> int:
     try:
         config = load_config(config_file)
@@ -419,28 +421,119 @@ def main(argv: Sequence[str] | None = None) -> int:
         account = config.account(args.alias)
         provider: Provider = account.provider
 
-        # IMAP supports multiple auth methods
+        # IMAP: check config for server settings, prompt if missing
         if provider == "imap":
-            print("IMAP/SMTP Configuration:")
-            print("  Auth methods: plain (username/password), app_password")
-            print("  For OAuth2, use 'oauth2' (not yet implemented)")
+            # Check for IMAP config in config.toml (global or per-account)
+            raw = config._raw
+            account_raw = raw.get("accounts", {}).get(args.alias, {})
+            global_imap = raw.get("imap", {})
             
-            # Get auth method
-            auth_method = input("Auth method [plain/app_password] [plain]: ").strip() or "plain"
+            # Merge: per-account overrides global
+            imap_config = {**global_imap, **account_raw}
             
-            # Get IMAP credentials
-            imap_username = input(f"IMAP username [{account.email}]: ").strip() or account.email
+            # If missing critical settings, run wizard
+            required = ["imap_host", "imap_port", "smtp_host", "smtp_port"]
+            missing = [k for k in required if not imap_config.get(k)]
+            
+            if missing:
+                print(f"IMAP/SMTP settings missing for '{args.alias}': {', '.join(missing)}")
+                print("Running configuration wizard...")
+                print()
+                
+                # Wizard prompts
+                imap_host = input(f"IMAP host [{imap_config.get('imap_host', '')}]: ").strip() or imap_config.get('imap_host', '')
+                if not imap_host:
+                    _print_error("mailhub: IMAP host is required")
+                    return 1
+                
+                imap_port = input(f"IMAP port [{imap_config.get('imap_port', '993')}]: ").strip() or imap_config.get('imap_port', '993')
+                imap_use_ssl = input(f"Use SSL/TLS for IMAP? [{ 'Y' if imap_config.get('imap_use_ssl', True) else 'y' }/n]: ").strip().lower()
+                imap_use_ssl = imap_use_ssl != 'n' if imap_use_ssl else True
+                imap_use_starttls = input(f"Use STARTTLS for IMAP? [{ 'Y' if imap_config.get('imap_use_starttls', False) else 'y' }/n]: ").strip().lower()
+                imap_use_starttls = imap_use_starttls == 'y'
+                
+                print()
+                smtp_host = input(f"SMTP host [{imap_config.get('smtp_host', '')}]: ").strip() or imap_config.get('smtp_host', '')
+                if not smtp_host:
+                    _print_error("mailhub: SMTP host is required")
+                    return 1
+                
+                smtp_port = input(f"SMTP port [{imap_config.get('smtp_port', '587')}]: ").strip() or imap_config.get('smtp_port', '587')
+                smtp_use_ssl = input(f"Use SSL/TLS for SMTP (port 465)? [{ 'Y' if imap_config.get('smtp_use_ssl', False) else 'y' }/n]: ").strip().lower()
+                smtp_use_ssl = smtp_use_ssl == 'y'
+                smtp_use_starttls = input(f"Use STARTTLS for SMTP? [{ 'Y' if imap_config.get('smtp_use_starttls', True) else 'y' }/n]: ").strip().lower()
+                smtp_use_starttls = smtp_use_starttls != 'n' if smtp_use_starttls else True
+                
+                print()
+                print("Authentication:")
+                print("  plain        - username/password (standard)")
+                print("  app_password - app-specific password (Gmail, Outlook)")
+                print("  oauth2       - OAuth2 (not yet implemented)")
+                auth_method = input(f"Auth method [{imap_config.get('auth_method', 'plain')}]: ").strip().lower() or imap_config.get('auth_method', 'plain')
+                if auth_method not in ("plain", "app_password", "oauth2"):
+                    _print_error("mailhub: auth_method must be plain, app_password, or oauth2")
+                    return 1
+                
+                # Save to config.toml (per-account) - update Account objects too
+                config_file = args.config or config_path()
+                
+                # Update the Account object in config with wizard data
+                updated_accounts = []
+                for acc in config.accounts:
+                    if acc.alias == args.alias:
+                        updated_accounts.append(Account(
+                            alias=acc.alias,
+                            provider=acc.provider,
+                            capabilities=acc.capabilities,
+                            email=acc.email,
+                            imap_host=imap_host,
+                            imap_port=imap_port,
+                            imap_use_ssl=imap_use_ssl,
+                            imap_use_starttls=imap_use_starttls,
+                            smtp_host=smtp_host,
+                            smtp_port=smtp_port,
+                            smtp_use_ssl=smtp_use_ssl,
+                            smtp_use_starttls=smtp_use_starttls,
+                            auth_method=auth_method,
+                        ))
+                    else:
+                        updated_accounts.append(acc)
+                
+                raw = dict(config._raw)
+                accounts_raw = raw.setdefault("accounts", {})
+                if args.alias not in accounts_raw:
+                    accounts_raw[args.alias] = {}
+                accounts_raw[args.alias].update({
+                    "imap_host": imap_host,
+                    "imap_port": int(imap_port),
+                    "imap_use_ssl": imap_use_ssl,
+                    "imap_use_starttls": imap_use_starttls,
+                    "smtp_host": smtp_host,
+                    "smtp_port": int(smtp_port),
+                    "smtp_use_ssl": smtp_use_ssl,
+                    "smtp_use_starttls": smtp_use_starttls,
+                    "auth_method": auth_method,
+                })
+                new_config = Config(accounts=tuple(updated_accounts), _raw=raw)
+                save_config(new_config, config_file)
+                print()
+                print(f"IMAP/SMTP settings saved for '{args.alias}'.")
+                print()
+            
+            # Now prompt for credentials
+            imap_config = {**global_imap, **account_raw}  # Refresh after potential update
+            # The keys in imap_config are now imap_host, imap_port, etc. (matching config keys)
+            imap_username = input(f"IMAP username [{imap_config.get('imap_username', account.email)}]: ").strip() or imap_config.get('imap_username', account.email)
             imap_password = input("IMAP password: ").strip()
             if not imap_password:
                 _print_error("mailhub: IMAP password required")
                 return 1
             
-            # Get SMTP credentials (optional, separate from IMAP)
             print("\nSMTP Configuration (press Enter to use IMAP settings):")
-            smtp_username = input(f"SMTP username [{imap_username}]: ").strip()
-            smtp_password = input(f"SMTP password [{imap_password}]: ").strip()
+            smtp_username = input(f"SMTP username [{imap_config.get('smtp_username', imap_username)}]: ").strip() or imap_config.get('smtp_username', imap_username)
+            smtp_password = input(f"SMTP password [{imap_config.get('smtp_password', imap_password)}]: ").strip() or imap_config.get('smtp_password', imap_password)
             
-            # Store credentials
+            # Store credentials in credential store
             store = CredentialStore(args.state or state_path())
             store.initialize()
             data = store.load()
@@ -459,7 +552,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             store.save(data)
             
             print(f"Successfully configured {args.alias} (IMAP with {auth_method} auth)")
-            print("Note: Edit ~/.config/mailhub/config.toml to customize IMAP/SMTP host/port settings")
             return 0
 
         # Use per-account OAuth credentials if available, otherwise provider-level

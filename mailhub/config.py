@@ -32,6 +32,16 @@ class Account:
     provider: str
     capabilities: frozenset[str]
     email: str = ""
+    # IMAP/SMTP settings (optional)
+    imap_host: str = ""
+    imap_port: int = 993
+    imap_use_ssl: bool = True
+    imap_use_starttls: bool = False
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_use_ssl: bool = False
+    smtp_use_starttls: bool = True
+    auth_method: str = "plain"
 
 
 @dataclass(frozen=True)
@@ -121,7 +131,21 @@ def parse_config(data: dict[str, Any]) -> Config:
             items = ", ".join(sorted(unsupported))
             raise ConfigError(f"account {alias} provider {provider!r} does not support: {items}")
         email = raw_account.get("email", "")
-        accounts.append(Account(alias=alias, provider=provider, capabilities=capabilities, email=email))
+        accounts.append(Account(
+            alias=alias,
+            provider=provider,
+            capabilities=capabilities,
+            email=raw_account.get("email", ""),
+            imap_host=raw_account.get("imap_host", ""),
+            imap_port=raw_account.get("imap_port", 993),
+            imap_use_ssl=raw_account.get("imap_use_ssl", True),
+            imap_use_starttls=raw_account.get("imap_use_starttls", False),
+            smtp_host=raw_account.get("smtp_host", ""),
+            smtp_port=raw_account.get("smtp_port", 587),
+            smtp_use_ssl=raw_account.get("smtp_use_ssl", False),
+            smtp_use_starttls=raw_account.get("smtp_use_starttls", True),
+            auth_method=raw_account.get("auth_method", "plain"),
+        ))
     
     # Create config with raw data
     config = Config(accounts=tuple(accounts), _raw=data)
@@ -247,10 +271,31 @@ def _atomic_write(path: Path, content: str) -> None:
 
 def _serialize_account(account: Account) -> dict[str, Any]:
     """Serialize an Account to a TOML-compatible dict."""
-    return {
+    data = {
         "provider": account.provider,
         "capabilities": sorted(account.capabilities),
     }
+    if account.email:
+        data["email"] = account.email
+    if account.imap_host:
+        data["imap_host"] = account.imap_host
+    if account.imap_port != 993:
+        data["imap_port"] = account.imap_port
+    if account.imap_use_ssl is not True:
+        data["imap_use_ssl"] = account.imap_use_ssl
+    if account.imap_use_starttls:
+        data["imap_use_starttls"] = account.imap_use_starttls
+    if account.smtp_host:
+        data["smtp_host"] = account.smtp_host
+    if account.smtp_port != 587:
+        data["smtp_port"] = account.smtp_port
+    if account.smtp_use_ssl:
+        data["smtp_use_ssl"] = account.smtp_use_ssl
+    if account.smtp_use_starttls is not True:
+        data["smtp_use_starttls"] = account.smtp_use_starttls
+    if account.auth_method != "plain":
+        data["auth_method"] = account.auth_method
+    return data
 
 
 def save_config(config: Config, path: Path | None = None) -> Path:
@@ -286,6 +331,16 @@ def save_config(config: Config, path: Path | None = None) -> Path:
         lines.append(f'  provider = "{account_data["provider"]}"')
         caps = ", ".join(f'"{c}"' for c in account_data["capabilities"])
         lines.append(f"  capabilities = [{caps}]")
+        # Write optional fields
+        for key, value in account_data.items():
+            if key in ("provider", "capabilities"):
+                continue
+            if isinstance(value, str):
+                lines.append(f'  {key} = "{value}"')
+            elif isinstance(value, bool):
+                lines.append(f"  {key} = {str(value).lower()}")
+            elif isinstance(value, int):
+                lines.append(f"  {key} = {value}")
         lines.append("")
     
     content = "\n".join(lines)
