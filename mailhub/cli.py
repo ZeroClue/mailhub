@@ -179,7 +179,7 @@ def handle_config_add_account(args, config_file: Path) -> int:
 
     if args.alias and args.provider and args.capabilities:
         try:
-            add_account(config, args.alias, args.provider, args.capabilities, config_file)
+            add_account(config, args.alias, args.provider, args.capabilities, args.email, config_file)
         except ConfigError as error:
             _print_error(f"mailhub: {error}")
             return 1

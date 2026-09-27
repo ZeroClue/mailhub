@@ -31,6 +31,7 @@ class Account:
     alias: str
     provider: str
     capabilities: frozenset[str]
+    email: str = ""
 
 
 @dataclass(frozen=True)
@@ -119,7 +120,8 @@ def parse_config(data: dict[str, Any]) -> Config:
         if unsupported:
             items = ", ".join(sorted(unsupported))
             raise ConfigError(f"account {alias} provider {provider!r} does not support: {items}")
-        accounts.append(Account(alias=alias, provider=provider, capabilities=capabilities))
+        email = raw_account.get("email", "")
+        accounts.append(Account(alias=alias, provider=provider, capabilities=capabilities, email=email))
     
     # Create config with raw data
     config = Config(accounts=tuple(accounts), _raw=data)
@@ -275,6 +277,7 @@ def add_account(
     alias: str,
     provider: str,
     capabilities: list[str],
+    email: str = "",
     path: Path | None = None,
 ) -> Config:
     """Add a new account to the configuration and save it."""
@@ -297,11 +300,18 @@ def add_account(
         raise ConfigError(f"provider {provider!r} does not support: {items}")
     
     # Create new account
-    new_account = Account(alias=alias, provider=provider, capabilities=caps_set)
+    new_account = Account(alias=alias, provider=provider, capabilities=caps_set, email=email)
     new_accounts = config.accounts + (new_account,)
     
+    # Update raw data with email
+    new_raw = config._raw.copy()
+    accounts_raw = new_raw.setdefault("accounts", {})
+    accounts_raw[alias] = {"provider": provider, "capabilities": list(caps_set)}
+    if email:
+        accounts_raw[alias]["email"] = email
+    
     # Create new config with updated accounts
-    new_config = Config(accounts=new_accounts, _raw=config._raw)
+    new_config = Config(accounts=new_accounts, _raw=new_raw)
     save_config(new_config, path)
     return new_config
 
