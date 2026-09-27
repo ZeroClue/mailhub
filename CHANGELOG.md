@@ -1,3 +1,9 @@
+## [0.1.14] - 2026-09-27
+
+### Fixed
+- **PyPI version conflict resolved** — Version bump to 0.1.14 after 0.1.13 already existed on PyPI from failed publish attempt
+- **Version synchronization** — All version references updated consistently across pyproject.toml, mailhub/__init__.py, and mailhub/app.py
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

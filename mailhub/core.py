@@ -118,6 +118,10 @@ class Core:
         self._adapters: dict[str, Any] = {}
         self._credentials_cache: dict[str, AccountCredentials] = {}
 
+    @property
+    def config(self) -> Config:
+        return self._config
+
     def _load_credentials(self, alias: str) -> AccountCredentials:
         """Load credentials for an account from the store."""
         if alias in self._credentials_cache:
