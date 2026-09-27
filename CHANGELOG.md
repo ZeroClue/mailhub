@@ -5,14 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13] - 2026-09-27
+
+### Fixed
+- **Docker test compatibility** — Token generation now handles missing config gracefully for test environments
+- **PyPI version bump** — Version 0.1.13 to resolve duplicate version on PyPI
+
+## [0.1.12] - 2026-09-27
+
+### Fixed
+- **Docker test compatibility** — Token generation now handles missing config gracefully for test environments
+
 ## [0.1.11] - 2026-09-27
 
 ### Added
 - **Auto-generated auth tokens** — `ro_token` and `full_token` are now auto-generated on `mailhub serve` startup
 - **Updated README** — Documented auto-token generation, updated config examples to show tokens are optional
-
-### Fixed
-- **README updated** — Added IMAP wizard integration to Quick Start, clarified config examples
 
 ## [0.1.10] - 2026-09-27
 
@@ -22,13 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.9] - 2026-09-27
 
 ### Added
-- **Integrated IMAP wizard in `auth imap`** — Auto-detects missing IMAP/SMTP settings and runs interactive wizard
-- **Per-account IMAP/SMTP config** — Settings saved to config.toml with full field serialization
-- **Config template with IMAP comments** — Comprehensive commented examples in generated config
-
-### Fixed
-- **IMAP config persistence** — Settings now properly saved to config.toml via Account serialization
-- **Account dataclass extended** — Added IMAP/SMTP fields (host, port, SSL, auth_method, etc.)
+- **Per-account OAuth credentials** — Gmail/Graph accounts can now use different Google Cloud projects or Entra ID app registrations
+- **Config fallback** — Provider-level `[gmail]`, `[graph]` sections serve as shared fallback
 
 ## [0.1.8] - 2026-09-27
 
