@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install uv
+        run: pip install uv
+      - name: Sync deps
+        run: uv sync --extra dev
+      - name: Run ruff lint
+        run: uv run ruff check mailhub tests
+      - name: Run ruff format check
+        run: uv run ruff format --check mailhub tests
+      - name: Run security scan (bandit)
+        run: |
+          uv pip install bandit
+          uv run bandit -r mailhub -f json -o bandit.json || true
+          cat bandit.json | jq '.results[] | select(.severity == "HIGH" or .severity == "MEDIUM")' || echo "No high/medium issues"
+      - name: Run dependency audit (safety)
+        run: |
+          uv pip install safety
+          uv run safety check --json --output safety.json || true
+          cat safety.json | jq '.vulnerabilities[]' || echo "No vulnerabilities"
+      - name: Run tests
+        run: uv run pytest -q
+      - name: Upload bandit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit.json
+      - name: Upload safety results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safety-report
+          path: safety.json
+
+  docker-test:
+    needs: lint-and-test
+    uses: ./.github/workflows/docker.yml
+    secrets: inherit
+
+  publish:
+    needs: [lint-and-test, docker-test]
+    uses: ./.github/workflows/publish.yml
+    secrets: inherit

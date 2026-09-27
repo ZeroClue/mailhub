@@ -17,6 +17,7 @@ on:
       - '.dockerignore'
       - 'mailhub/**'
       - 'pyproject.toml'
+  workflow_call:
 
 jobs:
   docker-test:
