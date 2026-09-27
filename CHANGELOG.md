@@ -1,3 +1,17 @@
+## [0.1.19] - 2026-09-27
+
+### Added
+- **MCP Server Info** — Proper `initialize` response with name, version, capabilities
+- **Complete MCP Tools** — 20+ tools with full JSON schemas:
+  - Core: status, search, get, send, draft, move, trash, folders
+  - Folders: status, special-folders, create, delete, rename
+  - Flags: mark_read, mark_unread, flag, unflag
+  - Batch: batch_move, batch_delete
+  - All with attachment support
+
+### Changed
+- **Version bump to 0.1.19** — All version references synchronized
+
 ## [0.1.18] - 2026-09-27
 
 ### Added

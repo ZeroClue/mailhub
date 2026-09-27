@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, Optional
 
 from mcp.server.fastmcp import FastMCP as _FastMCP
 
@@ -21,6 +22,17 @@ FULL_TOOL_NAMES = (
     "mailhub_move",
     "mailhub_trash",
     "mailhub_folders",
+    "mailhub_folder_status",
+    "mailhub_special_folders",
+    "mailhub_create_folder",
+    "mailhub_delete_folder",
+    "mailhub_rename_folder",
+    "mailhub_mark_read",
+    "mailhub_mark_unread",
+    "mailhub_flag",
+    "mailhub_unflag",
+    "mailhub_batch_move",
+    "mailhub_batch_delete",
 )
 
 # Module-level core holder
@@ -69,6 +81,7 @@ def mailhub_send(
     in_reply_to=None,
     references=None,
     confirm=False,
+    attachments=None,
 ):
     c = get_core()
     if not confirm:
@@ -85,6 +98,7 @@ def mailhub_send(
         in_reply_to=in_reply_to,
         references=references or [],
         confirm=True,
+        attachments=attachments or [],
     )
 
 
@@ -98,6 +112,7 @@ def mailhub_draft(
     html_body=None,
     in_reply_to=None,
     references=None,
+    attachments=None,
 ):
     c = get_core()
     return c.draft(
@@ -110,6 +125,7 @@ def mailhub_draft(
         html_body=html_body,
         in_reply_to=in_reply_to,
         references=references or [],
+        attachments=attachments or [],
     )
 
 
@@ -126,6 +142,63 @@ def mailhub_trash(account, message_id):
 def mailhub_folders(account):
     c = get_core()
     return c.folders(account)
+
+
+def mailhub_folder_status(account, folder=None):
+    c = get_core()
+    if folder:
+        return c.folder_status(account, folder)
+    return c.folder_statuses(account)
+
+
+def mailhub_special_folders(account):
+    c = get_core()
+    return c.special_use_folders(account)
+
+
+def mailhub_create_folder(account, name):
+    c = get_core()
+    return c.create_folder(account, name)
+
+
+def mailhub_delete_folder(account, name):
+    c = get_core()
+    return c.delete_folder(account, name)
+
+
+def mailhub_rename_folder(account, old_name, new_name):
+    c = get_core()
+    return c.rename_folder(account, old_name, new_name)
+
+
+def mailhub_mark_read(account, message_ids):
+    c = get_core()
+    return c.mark_read(account, message_ids)
+
+
+def mailhub_mark_unread(account, message_ids):
+    c = get_core()
+    return c.mark_unread(account, message_ids)
+
+
+def mailhub_flag(account, message_ids):
+    c = get_core()
+    return c.flag_messages(account, message_ids)
+
+
+def mailhub_unflag(account, message_ids):
+    c = get_core()
+    return c.unflag_messages(account, message_ids)
+
+
+def mailhub_batch_move(account, message_ids, destination):
+    c = get_core()
+    return c.batch_move(account, message_ids, destination)
+
+
+def mailhub_batch_delete(account, message_ids):
+    c = get_core()
+    return c.batch_delete(account, message_ids)
 
 
 def create_server(*, mode="ro", config_file=None):
@@ -188,6 +261,7 @@ def create_server(*, mode="ro", config_file=None):
             in_reply_to=None,
             references=None,
             confirm=False,
+            attachments=None,
         ):
             c = get_core()
             if not confirm:
@@ -204,6 +278,7 @@ def create_server(*, mode="ro", config_file=None):
                 in_reply_to=in_reply_to,
                 references=references or [],
                 confirm=True,
+                attachments=attachments or [],
             )
 
         @server.tool(name="mailhub_draft", description="Create a draft message.")
@@ -217,6 +292,7 @@ def create_server(*, mode="ro", config_file=None):
             html_body=None,
             in_reply_to=None,
             references=None,
+            attachments=None,
         ):
             c = get_core()
             return c.draft(
@@ -229,6 +305,7 @@ def create_server(*, mode="ro", config_file=None):
                 html_body=html_body,
                 in_reply_to=in_reply_to,
                 references=references or [],
+                attachments=attachments or [],
             )
 
         @server.tool(name="mailhub_move", description="Move a message to a folder/label.")
@@ -245,6 +322,63 @@ def create_server(*, mode="ro", config_file=None):
         def mailhub_folders_tool(account):
             c = get_core()
             return c.folders(account)
+
+        @server.tool(name="mailhub_folder_status", description="Get folder status (message counts, unseen) for an account or specific folder.")
+        def mailhub_folder_status_tool(account, folder=None):
+            c = get_core()
+            if folder:
+                return c.folder_status(account, folder)
+            return c.folder_statuses(account)
+
+        @server.tool(name="mailhub_special_folders", description="Detect special-use folders (Inbox, Sent, Drafts, Trash, Junk, Archive).")
+        def mailhub_special_folders_tool(account):
+            c = get_core()
+            return c.special_use_folders(account)
+
+        @server.tool(name="mailhub_create_folder", description="Create a new IMAP folder.")
+        def mailhub_create_folder_tool(account, name):
+            c = get_core()
+            return c.create_folder(account, name)
+
+        @server.tool(name="mailhub_delete_folder", description="Delete an IMAP folder.")
+        def mailhub_delete_folder_tool(account, name):
+            c = get_core()
+            return c.delete_folder(account, name)
+
+        @server.tool(name="mailhub_rename_folder", description="Rename an IMAP folder.")
+        def mailhub_rename_folder_tool(account, old_name, new_name):
+            c = get_core()
+            return c.rename_folder(account, old_name, new_name)
+
+        @server.tool(name="mailhub_mark_read", description="Mark messages as read (add \\Seen flag).")
+        def mailhub_mark_read_tool(account, message_ids):
+            c = get_core()
+            return c.mark_read(account, message_ids)
+
+        @server.tool(name="mailhub_mark_unread", description="Mark messages as unread (remove \\Seen flag).")
+        def mailhub_mark_unread_tool(account, message_ids):
+            c = get_core()
+            return c.mark_unread(account, message_ids)
+
+        @server.tool(name="mailhub_flag", description="Flag messages (add \\Flagged flag).")
+        def mailhub_flag_tool(account, message_ids):
+            c = get_core()
+            return c.flag_messages(account, message_ids)
+
+        @server.tool(name="mailhub_unflag", description="Unflag messages (remove \\Flagged flag).")
+        def mailhub_unflag_tool(account, message_ids):
+            c = get_core()
+            return c.unflag_messages(account, message_ids)
+
+        @server.tool(name="mailhub_batch_move", description="Move multiple messages to a folder.")
+        def mailhub_batch_move_tool(account, message_ids, destination):
+            c = get_core()
+            return c.batch_move(account, message_ids, destination)
+
+        @server.tool(name="mailhub_batch_delete", description="Move multiple messages to Trash.")
+        def mailhub_batch_delete_tool(account, message_ids):
+            c = get_core()
+            return c.batch_delete(account, message_ids)
 
     return server
 
