@@ -498,22 +498,22 @@ class Core:
         return result
 
     def mark_read(self, account: str, message_ids: list[str]) -> dict[str, object]:
-        """Mark messages as read (add \Seen flag)."""
-        return self.set_message_flags(account, message_ids, add_flags=["\Seen"])
+        """Mark messages as read (add \\Seen flag)."""
+        return self.set_message_flags(account, message_ids, add_flags=["\\Seen"])
 
     def mark_unread(self, account: str, message_ids: list[str]) -> dict[str, object]:
-        """Mark messages as unread (remove \Seen flag)."""
-        return self.set_message_flags(account, message_ids, remove_flags=["\Seen"])
+        """Mark messages as unread (remove \\Seen flag)."""
+        return self.set_message_flags(account, message_ids, remove_flags=["\\Seen"])
 
     def flag_messages(self, account: str, message_ids: list[str]) -> dict[str, object]:
-        """Flag messages (add \Flagged flag)."""
-        return self.set_message_flags(account, message_ids, add_flags=["\Flagged"])
+        """Flag messages (add \\Flagged flag)."""
+        return self.set_message_flags(account, message_ids, add_flags=["\\Flagged"])
 
     def unflag_messages(
         self, account: str, message_ids: list[str]
     ) -> dict[str, object]:
-        """Unflag messages (remove \Flagged flag)."""
-        return self.set_message_flags(account, message_ids, remove_flags=["\Flagged"])
+        """Unflag messages (remove \\Flagged flag)."""
+        return self.set_message_flags(account, message_ids, remove_flags=["\\Flagged"])
 
     def batch_move(
         self, account: str, message_ids: list[str], destination: str

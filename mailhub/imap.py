@@ -488,7 +488,7 @@ class IMAPAdapter:
 
                 status, _ = conn.copy(msg_num, destination)
                 if status == "OK":
-                    conn.store(msg_num, "+FLAGS", "\Deleted")
+                    conn.store(msg_num, "+FLAGS", "\\Deleted")
                     conn.expunge()
                     results.append({"message_id": msg_id, "status": "moved"})
                 else:
@@ -614,7 +614,7 @@ class IMAPAdapter:
           larger:N                   - Larger than N bytes
           smaller:N                  - Smaller than N bytes
           has:attachment             - Has attachments
-          has:flag                   - Has \Flagged flag
+          has:flag                   - Has \\Flagged flag
           is:read / is:unread        - Read status
           is:flagged / is:unflagged  - Flag status
 
