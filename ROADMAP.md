@@ -54,11 +54,11 @@ Mailhub M1-M5 complete (187 tests). This roadmap covers production hardening & U
 
 | Gate | When | Reviewer | Criteria |
 |------|------|----------|----------|
-| **Gate 1** | After Phase 1 (mail + config CLI) | Galileo | 187+ tests pass, security review, no P1 findings |
+| **Gate 1** | After Phase 1 (mail + config CLI) | Galileo | 333+ tests pass, security review, no P1 findings |
 | **Gate 2** | After Phase 2 (OAuth wizards) | Galileo | OAuth flow works, tokens stored securely, no secrets in logs |
 | **Gate 3** | After Phase 3 (docs/fixes) | Galileo | README complete, gitignore correct, pytest clean |
 | **Gate 4** | After Phase 4 (completions/man) | Galileo | Completions work, man pages render, no P1 findings |
-| **Gate 5** | Final (PyPI + validation) | Galileo | 187+ tests, PyPI publish works, security audit clean |
+| **Gate 5** | Final (PyPI + validation) | Galileo | 333+ tests, PyPI publish works, security audit clean |
 
 ---
 
@@ -72,7 +72,7 @@ Mailhub M1-M5 complete (187 tests). This roadmap covers production hardening & U
 | M4 - Contacts/Tasks | 166 | people.py, people_graph.py, carddav.py, tasks.py, tasks_graph.py, tasks_caldav.py |
 | M5 - Operations | 187 | deploy/, backup.py, docs/operations.md |
 
-**Total: 187 tests passing (267 with polish)**
+**Total: 187 tests passing (333 with comprehensive coverage)**
 
 ---
 
