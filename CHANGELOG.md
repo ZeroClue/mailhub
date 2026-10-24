@@ -1,3 +1,20 @@
+## [Unreleased]
+
+### Added
+- **Comprehensive test coverage** — 66 new tests for FastAPI REST API and IMAP adapter
+  - REST API: 50 tests covering all endpoints (accounts, folders, messages, search, send, drafts, moves, flags, batch operations)
+  - IMAP adapter: 16 tests for folder operations, message handling, search, special folder detection
+  - Token verification tests (Bearer and X-API-Key headers)
+  - Permission scope tests (read-only vs full access)
+
+### Fixed
+- **IMAP flag parsing** — Strip backslash prefix from IMAP flags in XLIST responses
+- **Docstring escape sequence** — Fixed deprecation warning for IMAP flag documentation
+
+### Changed
+- **MCP dependency upgrade** — Updated from 1.12.4 to 1.28.1
+- **Documentation** — Added CLAUDE.md with project architecture and development guidance
+
 ## [0.1.21] - 2026-09-27
 
 ### Added
