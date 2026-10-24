@@ -319,7 +319,8 @@ class IMAPAdapter:
                             r'\\([^)]+)\)\s+"([^"]+)"\s+"([^"]+)"', decoded
                         )
                         if match:
-                            flags = match.group(1).split()
+                            # Strip leading backslash from IMAP flags
+                            flags = [f.lstrip("\\") for f in match.group(1).split()]
                             name = match.group(3)
                             flag_map = {
                                 "Inbox": "inbox",
@@ -333,6 +334,7 @@ class IMAPAdapter:
                                 if flag in flag_map:
                                     special_folders[flag_map[flag]] = name
             except Exception:
+                # XLIST not supported or parsing failed, fall back to common names
                 pass
 
             # Fallback: try common names
@@ -376,7 +378,7 @@ class IMAPAdapter:
         add_flags: list[str] = None,
         remove_flags: list[str] = None,
     ) -> dict[str, Any]:
-        """Add or remove flags (\Seen, \Flagged, etc.) from messages."""
+        r"""Add or remove flags (\Seen, \Flagged, etc.) from messages."""
         if not add_flags and not remove_flags:
             return {"error": "No flags specified"}
 
