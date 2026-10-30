@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.1.22] - 2026-10-30
+
 ### Added
 - **Comprehensive test coverage** — 66 new tests for FastAPI REST API and IMAP adapter
   - REST API: 50 tests covering all endpoints (accounts, folders, messages, search, send, drafts, moves, flags, batch operations)
@@ -12,8 +14,10 @@
 - **Docstring escape sequence** — Fixed deprecation warning for IMAP flag documentation
 
 ### Changed
-- **MCP dependency upgrade** — Updated from 1.12.4 to 1.28.1
+- **MCP dependency upgrade** — Updated from 1.12.4 to 1.30.0
 - **Documentation** — Added CLAUDE.md with project architecture and development guidance
+- **Dependency security checks** — Replace the deprecated Safety checker with `uv audit`; upgrade pytest to 9.0.3 and pytest-asyncio to 1.3.0
+- **Manuals** — Update man page version metadata and pinned container examples
 
 ## [0.1.21] - 2026-09-27
 

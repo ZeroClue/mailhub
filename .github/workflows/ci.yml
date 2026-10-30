@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install uv
-        run: pip install uv
+        run: pip install uv==0.11.12
       - name: Sync deps
         run: uv sync --extra dev
       - name: Run ruff lint
@@ -23,28 +23,11 @@ jobs:
       - name: Run ruff format check
         run: uv run ruff format --check mailhub tests
       - name: Run security scan (bandit)
-        run: |
-          uv run bandit -r mailhub -f json -o bandit.json || true
-          cat bandit.json | jq '.results[] | select(.issue_severity == "HIGH" or .issue_severity == "MEDIUM")' || echo "No high/medium issues"
-      - name: Run dependency audit (safety)
-        run: |
-          uv run safety check --json > safety.json || true
-          cat safety.json | jq '.vulnerabilities[]' 2>/dev/null || echo "No vulnerabilities"
+        run: uv run bandit -r mailhub -ll
+      - name: Audit locked dependencies
+        run: uv audit --locked --preview-features audit
       - name: Run tests
         run: uv run pytest -q
-      - name: Upload bandit results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bandit-report
-          path: bandit.json
-      - name: Upload safety results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: safety-report
-          path: safety.json
-
   docker-test:
     needs: lint-and-test
     runs-on: ubuntu-latest

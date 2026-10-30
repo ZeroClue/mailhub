@@ -70,14 +70,14 @@ def create_app(config_file: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="Mailhub",
         description="Local personal-operations hub for AI assistants",
-        version="0.1.21",
+        version="0.1.22",
         lifespan=lifespan,
     )
 
     @app.get("/health")
     async def health():
         """Health check endpoint - returns basic status."""
-        return {"status": "ok", "version": "0.1.21"}
+        return {"status": "ok", "version": "0.1.22"}
 
     @app.get("/health/detailed")
     async def health_detailed():
@@ -86,7 +86,7 @@ def create_app(config_file: Path | None = None) -> FastAPI:
         if core is None:
             return {
                 "status": "degraded",
-                "version": "0.1.21",
+                "version": "0.1.22",
                 "error": "Core not initialized",
             }
 
@@ -104,7 +104,7 @@ def create_app(config_file: Path | None = None) -> FastAPI:
         all_ok = all(s.get("status") == "ok" for s in adapter_status.values())
         return {
             "status": "ok" if all_ok else "degraded",
-            "version": "0.1.21",
+            "version": "0.1.22",
             "adapters": adapter_status,
         }
 

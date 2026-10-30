@@ -369,7 +369,7 @@ Mailhub provides official Docker images via GitHub Container Registry for contai
 
 ```bash
 # Pull the image
-docker pull ghcr.io/zeroclue/zc-mailhub:v0.1.2
+docker pull ghcr.io/zeroclue/zc-mailhub:v0.1.21
 
 # Run with docker-compose (recommended)
 docker compose up -d
@@ -380,7 +380,7 @@ docker run -d \
   -v mailhub-config:/home/mailhub/.config/mailhub \
   -v mailhub-state:/home/mailhub/.local/state/mailhub \
   -e MAILHUB_ALLOW_NON_LOOPBACK=1 \
-  ghcr.io/zeroclue/zc-mailhub:v0.1.2 \
+  ghcr.io/zeroclue/zc-mailhub:v0.1.21 \
   serve --host 0.0.0.0
 ```
 
@@ -398,7 +398,7 @@ version: '3.8'
 
 services:
   mailhub:
-    image: ghcr.io/zeroclue/zc-mailhub:v0.1.2
+    image: ghcr.io/zeroclue/zc-mailhub:v0.1.21
     container_name: mailhub
     command: ["mailhub", "serve", "--host", "0.0.0.0"]
     ports:
@@ -417,7 +417,7 @@ services:
       retries: 3
 
   mailhub-mcp:
-    image: ghcr.io/zeroclue/zc-mailhub:v0.1.2
+    image: ghcr.io/zeroclue/zc-mailhub:v0.1.21
     container_name: mailhub-mcp
     entrypoint: ["mailhub", "mcp", "--mode", "full"]
     volumes:
@@ -491,7 +491,7 @@ docker compose run --rm mailhub-mcp
 docker run -it --rm \
   -v mailhub-config:/home/mailhub/.config/mailhub \
   -v mailhub-state:/home/mailhub/.local/state/mailhub \
-  ghcr.io/zeroclue/zc-mailhub:v0.1.2 \
+  ghcr.io/zeroclue/zc-mailhub:v0.1.21 \
   mcp --mode full
 ```
 
@@ -507,7 +507,7 @@ For MCP clients using Docker:
       "args": ["run", "-i", "--rm", 
         "-v", "mailhub-config:/home/mailhub/.config/mailhub",
         "-v", "mailhub-state:/home/mailhub/.local/state/mailhub",
-        "ghcr.io/zeroclue/zc-mailhub:v0.1.2",
+        "ghcr.io/zeroclue/zc-mailhub:v0.1.21",
         "mcp", "--mode", "full"]
     }
   }
@@ -598,7 +598,7 @@ docker compose pull
 docker compose up -d
 
 # Or specific version
-docker pull ghcr.io/zeroclue/zc-mailhub:v0.1.3
+docker pull ghcr.io/zeroclue/zc-mailhub:v0.1.21
 docker compose up -d
 ```
 
