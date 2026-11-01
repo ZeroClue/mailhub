@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import base64
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mailhub.imap import IMAPAdapter, IMAPConfig
+from mailhub.imap import IMAPAdapter, IMAPConfig, _xoauth2_base64, _xoauth2_payload
 from mailhub.core import CoreError, AccountCredentials
+from mailhub.config import parse_config
+from mailhub.core import Core
 
 
 class MockCore:
@@ -267,6 +270,102 @@ def test_imap_config_smtp_ssl_port():
     )
 
     assert config.get_smtp_port() == 465
+
+
+def test_xoauth2_initial_response_is_base64_encoded():
+    payload = _xoauth2_payload("user@example.com", "access-token")
+    assert payload == b"user=user@example.com\x01auth=Bearer access-token\x01\x01"
+    assert _xoauth2_base64("user@example.com", "access-token") == base64.b64encode(
+        payload
+    )
+
+
+def test_oauth2_imap_username_uses_mailbox_address_not_oauth_client_id(mock_core):
+    mock_core._credentials["test_account"] = AccountCredentials(
+        client_id="oauth-client-id",
+        client_secret="oauth-client-secret",
+        refresh_token="refresh-token",
+    )
+    mock_core._config._accounts["test_account"].auth_method = "oauth2"
+    mock_core._config._raw["accounts"]["test_account"].update(
+        {"auth_method": "oauth2", "imap_username": "imap-user@example.com"}
+    )
+
+    config = IMAPAdapter(mock_core)._get_config("test_account")
+
+    assert config.username == "imap-user@example.com"
+
+
+@pytest.mark.parametrize("host", ["imap.gmail.com", "imap-mail.outlook.com"])
+def test_oauth2_imap_uses_xoauth2(adapter, mock_core, mock_imap, host):
+    mock_core._ensure_access_token = MagicMock(return_value="access-token")
+    config = IMAPConfig(
+        host=host,
+        username="user@example.com",
+        auth_method="oauth2",
+    )
+
+    assert adapter._connect_imap(config, "test_account") is mock_imap
+
+    mechanism, auth_response = mock_imap.authenticate.call_args.args
+    assert mechanism == "XOAUTH2"
+    response = auth_response(b"")
+    assert base64.b64encode(response) == _xoauth2_base64(
+        "user@example.com", "access-token"
+    )
+    assert auth_response(b"server-continuation") == b""
+    mock_core._ensure_access_token.assert_called_once_with("test_account")
+
+
+def test_oauth2_imap_without_tokens_raises_clear_core_error(tmp_path):
+    config = parse_config(
+        {
+            "accounts": {
+                "test_account": {
+                    "provider": "imap",
+                    "capabilities": ["mail"],
+                    "email": "user@gmail.com",
+                    "imap_host": "imap.gmail.com",
+                }
+            }
+        }
+    )
+    core = Core(config=config, state_file=tmp_path / "credentials.json")
+    adapter = IMAPAdapter(core)
+    config = IMAPConfig(
+        host="imap.gmail.com",
+        username="user@gmail.com",
+        auth_method="oauth2",
+    )
+
+    with pytest.raises(CoreError, match="no refresh token.*run auth flow"):
+        adapter._connect_imap(config, "test_account")
+
+
+def test_oauth2_smtp_uses_xoauth2(adapter, mock_core):
+    mock_core._ensure_access_token = MagicMock(return_value="access-token")
+    config = IMAPConfig(
+        host="imap-mail.outlook.com",
+        username="user@outlook.com",
+        smtp_host="smtp-mail.outlook.com",
+        smtp_username="user@outlook.com",
+        smtp_port=587,
+        use_ssl=False,
+        auth_method="oauth2",
+    )
+    with patch("mailhub.imap.smtplib.SMTP") as mock_smtp:
+        mock_conn = mock_smtp.return_value
+        mock_conn.auth.return_value = (235, b"authenticated")
+        assert adapter._connect_smtp(config, "test_account") is mock_conn
+
+    mechanism, auth_response = mock_conn.auth.call_args.args
+    assert mechanism == "XOAUTH2"
+    assert mock_conn.auth.call_args.kwargs["initial_response_ok"] is False
+    assert (
+        auth_response(b"")
+        == "user=user@outlook.com\x01auth=Bearer access-token\x01\x01"
+    )
+    assert auth_response(b"server-continuation") == ""
 
 
 def test_folder_status_parses_imap_status(adapter, mock_imap):

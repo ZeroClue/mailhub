@@ -13,7 +13,7 @@ from typing import Any
 
 
 from .config import Config, load_config
-from .oauth import Provider, ReauthNeeded, refresh
+from .oauth import Provider, ReauthNeeded, imap_oauth_provider, refresh
 from .store import CredentialStore
 
 __all__ = ["Core", "CoreError", "SendDenied", "AuditEntry"]
@@ -63,6 +63,7 @@ class AccountCredentials:
     expires_at: float | None = None  # Unix timestamp
     client_id: str | None = None
     client_secret: str | None = None
+    oauth_provider: Provider | None = None
 
 
 # Fields that should never be logged in audit
@@ -143,6 +144,7 @@ class Core:
             expires_at=account_data.get("expires_at"),
             client_id=account_data.get("client_id"),
             client_secret=account_data.get("client_secret"),
+            oauth_provider=account_data.get("oauth_provider"),
         )
         self._credentials_cache[alias] = creds
         return creds
@@ -157,6 +159,7 @@ class Core:
             "expires_at": creds.expires_at,
             "client_id": creds.client_id,
             "client_secret": creds.client_secret,
+            "oauth_provider": creds.oauth_provider,
         }
         self._store.save(data)
         self._credentials_cache[alias] = creds
@@ -198,7 +201,27 @@ class Core:
         if not creds.client_id or not creds.client_secret:
             raise CoreError(f"missing client credentials for account {alias}")
 
-        provider: Provider = account.provider  # type: ignore[assignment]
+        provider: Provider
+        if account.provider == "imap":
+            raw_account = self._config._raw.get("accounts", {}).get(alias, {})
+            raw_imap = self._config._raw.get("imap", {})
+            imap_host = raw_account.get(
+                "imap_host", raw_account.get("host", raw_imap.get("host", ""))
+            )
+            oauth_scope = raw_account.get(
+                "oauth_scope", raw_imap.get("oauth_scope", account.oauth_scope)
+            )
+            try:
+                if creds.oauth_provider in ("gmail", "graph"):
+                    provider = creds.oauth_provider
+                else:
+                    provider = imap_oauth_provider(
+                        account.email, imap_host, oauth_scope
+                    )
+            except ValueError as error:
+                raise CoreError(str(error)) from error
+        else:
+            provider = account.provider  # type: ignore[assignment]
         try:
             token_resp = refresh(
                 provider, creds.client_id, creds.client_secret, creds.refresh_token

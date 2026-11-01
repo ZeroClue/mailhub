@@ -170,7 +170,25 @@ capabilities = ["mail", "calendar", "contacts"]
 [accounts.work]
 provider = "graph"
 capabilities = ["mail", "calendar", "contacts", "tasks"]
+
+[accounts.outlook_imap]
+provider = "imap"
+capabilities = ["mail"]
+email = "user@outlook.com"
+imap_host = "imap-mail.outlook.com"
+imap_username = "user@outlook.com"
+smtp_host = "smtp-mail.outlook.com"
+smtp_port = 587
+auth_method = "oauth2"
+# Optional scope override. Default is IMAP.AccessAsUser.All + SMTP.Send + offline_access.
+# oauth_scope = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access"
+# Gmail IMAP uses https://mail.google.com/; this may also be set explicitly.
 ```
+
+For IMAP OAuth, run `mailhub auth imap outlook_imap`. OAuth IMAP scopes differ
+from the Gmail API and Microsoft Graph scopes. Microsoft requires the delegated
+`IMAP.AccessAsUser.All` permission, which grants read/write IMAP access; sending
+over SMTP also needs `SMTP.Send`. Gmail IMAP uses `https://mail.google.com/`.
 
 ## Security
 

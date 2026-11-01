@@ -42,6 +42,7 @@ class Account:
     smtp_use_ssl: bool = False
     smtp_use_starttls: bool = True
     auth_method: str = "plain"
+    oauth_scope: str = ""
 
 
 @dataclass(frozen=True)
@@ -134,6 +135,9 @@ def parse_config(data: dict[str, Any]) -> Config:
         aliases.add(alias)
         if not isinstance(raw_account, dict):
             raise ConfigError(f"account {alias} must be a TOML table")
+        oauth_scope = raw_account.get("oauth_scope", "")
+        if not isinstance(oauth_scope, str):
+            raise ConfigError(f"account {alias}.oauth_scope must be a string")
         provider = _require_string(
             raw_account.get("provider"), f"account {alias}.provider"
         )
@@ -169,6 +173,7 @@ def parse_config(data: dict[str, Any]) -> Config:
                 smtp_use_ssl=raw_account.get("smtp_use_ssl", False),
                 smtp_use_starttls=raw_account.get("smtp_use_starttls", True),
                 auth_method=raw_account.get("auth_method", "plain"),
+                oauth_scope=oauth_scope,
             )
         )
 
@@ -233,6 +238,7 @@ CONFIG_TEMPLATE = """# Mailhub account registry.
 # smtp_use_ssl = false
 # smtp_use_starttls = true
 # auth_method = "plain"  # plain, app_password, oauth2
+# oauth_scope = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access"  # override defaults; Microsoft IMAP permission is read/write
 #
 # Shared OAuth credentials (used as fallback for accounts without per-account credentials):
 # [gmail]
@@ -322,6 +328,8 @@ def _serialize_account(account: Account) -> dict[str, Any]:
         data["smtp_use_starttls"] = account.smtp_use_starttls
     if account.auth_method != "plain":
         data["auth_method"] = account.auth_method
+    if account.oauth_scope:
+        data["oauth_scope"] = account.oauth_scope
     return data
 
 

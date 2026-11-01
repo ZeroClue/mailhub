@@ -26,7 +26,14 @@ from .config import (
     validate_provider_credentials,
 )
 from .core import Core, CoreError
-from .oauth import Provider, auth_url, check_state, exchange, parse_redirect
+from .oauth import (
+    Provider,
+    auth_url,
+    check_state,
+    exchange,
+    imap_oauth_scope,
+    parse_redirect,
+)
 from .store import CredentialStore, state_path
 
 
@@ -383,6 +390,8 @@ def handle_config_setup_microsoft(args, config_file: Path) -> int:
     print(
         "   - offline_access, Mail.ReadWrite, Mail.Send, MailboxSettings.ReadWrite, User.Read"
     )
+    print("   For IMAP/SMTP, also add Office 365 Exchange Online delegated:")
+    print("   - IMAP.AccessAsUser.All; add SMTP.Send if sending over SMTP")
     print("6. Grant admin consent if needed")
     print("7. Copy the Application (client) ID")
     print()
@@ -482,6 +491,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         account = config.account(args.alias)
         provider: Provider = account.provider
+        oauth_scope = account.oauth_scope or None
 
         # IMAP: check config for server settings, prompt if missing
         if provider == "imap":
@@ -492,6 +502,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             # Merge: per-account overrides global
             imap_config = {**global_imap, **account_raw}
+            auth_method = imap_config.get("auth_method", "plain")
 
             # If missing critical settings, run wizard
             required = ["imap_host", "imap_port", "smtp_host", "smtp_port"]
@@ -566,7 +577,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print("Authentication:")
                 print("  plain        - username/password (standard)")
                 print("  app_password - app-specific password (Gmail, Outlook)")
-                print("  oauth2       - OAuth2 (not yet implemented)")
+                print("  oauth2       - OAuth2 (XOAUTH2)")
                 auth_method = input(
                     f"Auth method [{imap_config.get('auth_method', 'plain')}]: "
                 ).strip().lower() or imap_config.get("auth_method", "plain")
@@ -598,6 +609,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                                 smtp_use_ssl=smtp_use_ssl,
                                 smtp_use_starttls=smtp_use_starttls,
                                 auth_method=auth_method,
+                                oauth_scope=acc.oauth_scope,
                             )
                         )
                     else:
@@ -626,53 +638,64 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"IMAP/SMTP settings saved for '{args.alias}'.")
                 print()
 
-            # Now prompt for credentials
+            # Plain and app-password accounts retain the existing password flow.
             imap_config = {
                 **global_imap,
                 **account_raw,
             }  # Refresh after potential update
-            # The keys in imap_config are now imap_host, imap_port, etc. (matching config keys)
-            imap_username = input(
-                f"IMAP username [{imap_config.get('imap_username', account.email)}]: "
-            ).strip() or imap_config.get("imap_username", account.email)
-            imap_password = input("IMAP password: ").strip()
-            if not imap_password:
-                _print_error("mailhub: IMAP password required")
+            auth_method = imap_config.get("auth_method", auth_method)
+            if auth_method != "oauth2":
+                imap_username = input(
+                    f"IMAP username [{imap_config.get('imap_username', account.email)}]: "
+                ).strip() or imap_config.get("imap_username", account.email)
+                imap_password = input("IMAP password: ").strip()
+                if not imap_password:
+                    _print_error("mailhub: IMAP password required")
+                    return 1
+
+                print("\nSMTP Configuration (press Enter to use IMAP settings):")
+                smtp_username = input(
+                    f"SMTP username [{imap_config.get('smtp_username', imap_username)}]: "
+                ).strip() or imap_config.get("smtp_username", imap_username)
+                smtp_password = input(
+                    f"SMTP password [{imap_config.get('smtp_password', imap_password)}]: "
+                ).strip() or imap_config.get("smtp_password", imap_password)
+
+                store = CredentialStore(args.state or state_path())
+                store.initialize()
+                data = store.load()
+                accounts = data.setdefault("accounts", {})
+                accounts[args.alias] = {
+                    "access_token": "",
+                    "refresh_token": imap_password,
+                    "expires_at": 0,
+                    "client_id": imap_username,
+                    "client_secret": imap_password,
+                    "smtp_username": smtp_username,
+                    "smtp_password": smtp_password,
+                    "auth_method": auth_method,
+                }
+                store.save(data)
+
+                print(
+                    f"Successfully configured {args.alias} (IMAP with {auth_method} auth)"
+                )
+                return 0
+
+            try:
+                provider, oauth_scope = imap_oauth_scope(
+                    account.email,
+                    imap_config.get("imap_host", imap_config.get("host", "")),
+                    imap_config.get("oauth_scope") or oauth_scope,
+                )
+            except ValueError as error:
+                _print_error(f"mailhub: {error}")
                 return 1
 
-            print("\nSMTP Configuration (press Enter to use IMAP settings):")
-            smtp_username = input(
-                f"SMTP username [{imap_config.get('smtp_username', imap_username)}]: "
-            ).strip() or imap_config.get("smtp_username", imap_username)
-            smtp_password = input(
-                f"SMTP password [{imap_config.get('smtp_password', imap_password)}]: "
-            ).strip() or imap_config.get("smtp_password", imap_password)
-
-            # Store credentials in credential store
-            store = CredentialStore(args.state or state_path())
-            store.initialize()
-            data = store.load()
-            accounts = data.setdefault("accounts", {})
-
-            accounts[args.alias] = {
-                "access_token": "",
-                "refresh_token": imap_password,
-                "expires_at": 0,
-                "client_id": imap_username,
-                "client_secret": imap_password,
-                "smtp_username": smtp_username,
-                "smtp_password": smtp_password,
-                "auth_method": auth_method,
-            }
-            store.save(data)
-
-            print(
-                f"Successfully configured {args.alias} (IMAP with {auth_method} auth)"
-            )
-            return 0
-
         # Use per-account OAuth credentials if available, otherwise provider-level
-        client_cfg = config.provider_config(provider, args.alias)
+        client_cfg = config.provider_config(
+            provider, args.alias if account.provider != "imap" else None
+        )
 
         if not args.code:
             if not client_cfg["client_id"]:
@@ -681,12 +704,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 return 1
             url, state_obj = auth_url(
-                provider, client_cfg["client_id"], account.email, args.alias
+                provider,
+                client_cfg["client_id"],
+                account.email,
+                args.alias,
+                scope=oauth_scope,
             )
             print(f"Open this URL in your browser:\n{url}\n")
             print("After consent, the browser will show a 404 at localhost:8788.")
             print("Copy the full URL from the address bar and run:")
-            print(f"  mailhub auth {provider} {args.alias} --code '<pasted-url>'")
+            print(
+                f"  mailhub auth {account.provider} {args.alias} --code '<pasted-url>'"
+            )
             import json as json_lib
 
             state_file = state_path().parent / f"oauth_{provider}_{args.alias}.json"
@@ -744,6 +773,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             + tokens.get("expires_in", 3600),
             "client_id": client_cfg["client_id"],
             "client_secret": client_cfg.get("client_secret"),
+            "oauth_provider": provider,
         }
         store.save(data)
         print(f"Successfully authorized {args.alias} ({provider})")
@@ -759,8 +789,52 @@ def main(argv: Sequence[str] | None = None) -> int:
         account = config.account(args.alias)
         provider: Provider = account.provider
 
-        # IMAP: re-enter credentials
+        # IMAP accounts can renew OAuth consent or retain password auth.
         if provider == "imap":
+            account_raw = config._raw.get("accounts", {}).get(args.alias, {})
+            imap_config = {**config._raw.get("imap", {}), **account_raw}
+            if imap_config.get("auth_method", "plain") == "oauth2":
+                try:
+                    provider, oauth_scope = imap_oauth_scope(
+                        account.email,
+                        imap_config.get("imap_host", imap_config.get("host", "")),
+                        imap_config.get("oauth_scope") or account.oauth_scope or None,
+                    )
+                except ValueError as error:
+                    _print_error(f"mailhub: {error}")
+                    return 1
+                client_cfg = config.provider_config(provider)
+                if not client_cfg["client_id"]:
+                    _print_error(
+                        f"mailhub: no client_id configured for {args.alias} (provider {provider})"
+                    )
+                    return 1
+                url, state_obj = auth_url(
+                    provider,
+                    client_cfg["client_id"],
+                    account.email,
+                    args.alias,
+                    scope=oauth_scope,
+                )
+                print(f"Open this URL in your browser (forced consent):\n{url}\n")
+                print("After consent, copy the full redirect URL and run:")
+                print(f"  mailhub auth imap {args.alias} --code '<pasted-url>'")
+                import json as json_lib
+
+                state_file = state_path().parent / f"oauth_{provider}_{args.alias}.json"
+                state_file.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                state_file.write_text(
+                    json_lib.dumps(
+                        {
+                            "state": state_obj.state,
+                            "provider": state_obj.provider,
+                            "alias": state_obj.alias,
+                            "code_verifier": state_obj.pkce.code_verifier,
+                        }
+                    )
+                )
+                return 0
+
             print("IMAP/SMTP Re-configuration:")
             auth_method = (
                 input("Auth method [plain/app_password] [plain]: ").strip() or "plain"
@@ -801,10 +875,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"mailhub: no client_id configured for {args.alias} (provider {provider})"
             )
             return 1
-        url, _ = auth_url(provider, client_cfg["client_id"], account.email, args.alias)
+        url, _ = auth_url(
+            provider,
+            client_cfg["client_id"],
+            account.email,
+            args.alias,
+            scope=account.oauth_scope or None,
+        )
         print(f"Open this URL in your browser (forced consent):\n{url}\n")
         print("After consent, copy the full redirect URL and run:")
-        print(f"  mailhub auth {provider} {args.alias} --code '<pasted-url>'")
+        print(f"  mailhub auth {account.provider} {args.alias} --code '<pasted-url>'")
         return 0
 
     if args.command == "logout":

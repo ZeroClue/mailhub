@@ -26,6 +26,14 @@ GRAPH_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
 GRAPH_SCOPE = (
     "offline_access Mail.ReadWrite Mail.Send User.Read MailboxSettings.ReadWrite"
 )
+GMAIL_IMAP_SCOPE = "https://mail.google.com/"
+# Microsoft documents only IMAP.AccessAsUser.All for delegated IMAP, and it
+# grants read/write access; no narrower delegated IMAP scope is available.
+# Include SMTP.Send because this adapter also authenticates SMTP with the token.
+MICROSOFT_IMAP_SCOPE = (
+    "https://outlook.office.com/IMAP.AccessAsUser.All "
+    "https://outlook.office.com/SMTP.Send offline_access"
+)
 
 
 class ReauthNeeded(Exception):
@@ -68,7 +76,11 @@ def generate_pkce() -> PKCE:
 
 
 def auth_url(
-    provider: Provider, client_id: str, email: str, alias: str
+    provider: Provider,
+    client_id: str,
+    email: str,
+    alias: str,
+    scope: str | None = None,
 ) -> tuple[str, AuthState]:
     """
     Generate an authorization URL with PKCE and random state.
@@ -83,7 +95,7 @@ def auth_url(
         "client_id": client_id,
         "redirect_uri": REDIRECT_URI,
         "response_type": "code",
-        "scope": GOOGLE_SCOPE if provider == "gmail" else GRAPH_SCOPE,
+        "scope": scope or (GOOGLE_SCOPE if provider == "gmail" else GRAPH_SCOPE),
         "state": state,
         "code_challenge": pkce.code_challenge,
         "code_challenge_method": "S256",
@@ -96,6 +108,42 @@ def auth_url(
     base = GOOGLE_AUTH_URL if provider == "gmail" else GRAPH_AUTH_URL
     url = f"{base}?{urllib.parse.urlencode(params)}"
     return url, auth_state
+
+
+def imap_oauth_provider(
+    email: str, imap_host: str = "", oauth_scope: str | None = None
+) -> Provider:
+    """Choose the OAuth authority for an IMAP account from its email or host."""
+    scope = (oauth_scope or "").casefold()
+    host = imap_host.casefold().rstrip(".")
+    domain = email.rsplit("@", 1)[-1].casefold() if "@" in email else ""
+
+    if "https://mail.google.com/" in scope:
+        return "gmail"
+    if "https://outlook.office." in scope or "https://outlook.office365.com/" in scope:
+        return "graph"
+    if host in {"imap-mail.outlook.com", "outlook.office365.com"} or domain in {
+        "outlook.com",
+        "hotmail.com",
+        "live.com",
+    }:
+        return "graph"
+    if host == "imap.gmail.com" or domain in {"gmail.com", "googlemail.com"}:
+        return "gmail"
+    raise ValueError(
+        "cannot determine OAuth provider for IMAP account; set oauth_scope to a "
+        "Google or Microsoft IMAP scope"
+    )
+
+
+def imap_oauth_scope(
+    email: str, imap_host: str = "", oauth_scope: str | None = None
+) -> tuple[Provider, str]:
+    """Return OAuth provider and IMAP-specific scopes for the account."""
+    provider = imap_oauth_provider(email, imap_host, oauth_scope)
+    if oauth_scope:
+        return provider, oauth_scope
+    return provider, GMAIL_IMAP_SCOPE if provider == "gmail" else MICROSOFT_IMAP_SCOPE
 
 
 def parse_redirect(text: str) -> tuple[str, str | None]:

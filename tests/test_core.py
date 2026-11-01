@@ -209,3 +209,36 @@ capabilities = ["mail"]
         loaded = core2._load_credentials("personal")
         assert loaded.access_token == "at123"
         assert loaded.expires_at == 9999999999
+
+    def test_imap_oauth_refresh_uses_issuing_provider(self, tmp_path, monkeypatch):
+        config_file = tmp_path / "config.toml"
+        config_file.write_text(
+            "[accounts.outlook]\n"
+            'provider = "imap"\n'
+            'capabilities = ["mail"]\n'
+            'email = "user@outlook.com"\n'
+            'imap_host = "imap-mail.outlook.com"\n'
+        )
+        state_file = tmp_path / "credentials.json"
+        state_file.write_text(
+            json.dumps(
+                {
+                    "accounts": {
+                        "outlook": {
+                            "refresh_token": "refresh-token",
+                            "client_id": "oauth-client-id",
+                            "client_secret": "oauth-client-secret",
+                            "oauth_provider": "graph",
+                        }
+                    }
+                }
+            )
+        )
+        core = Core(config_file=config_file, state_file=state_file)
+        refresh = MagicMock(return_value={"access_token": "new-access-token"})
+        monkeypatch.setattr("mailhub.core.refresh", refresh)
+
+        assert core._ensure_access_token("outlook") == "new-access-token"
+        refresh.assert_called_once_with(
+            "graph", "oauth-client-id", "oauth-client-secret", "refresh-token"
+        )

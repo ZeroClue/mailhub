@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import parse_qs, urlparse
+
 import pytest
 
 from mailhub.oauth import (
@@ -12,6 +14,7 @@ from mailhub.oauth import (
     check_state,
     exchange,
     generate_pkce,
+    imap_oauth_scope,
     parse_redirect,
 )
 
@@ -58,6 +61,46 @@ class TestAuthURL:
         )
         assert state.provider == "graph"
         assert state.alias == "work"
+
+    def test_auth_url_accepts_explicit_imap_scope(self):
+        scope = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access"
+        url, state = auth_url(
+            "graph", "client456", "user@outlook.com", "outlook", scope=scope
+        )
+        assert parse_qs(urlparse(url).query)["scope"] == [scope]
+        assert state.provider == "graph"
+
+
+@pytest.mark.parametrize(
+    ("email", "host", "expected_provider", "expected_scope"),
+    [
+        (
+            "user@gmail.com",
+            "imap.gmail.com",
+            "gmail",
+            "https://mail.google.com/",
+        ),
+        (
+            "user@outlook.com",
+            "imap-mail.outlook.com",
+            "graph",
+            "https://outlook.office.com/IMAP.AccessAsUser.All "
+            "https://outlook.office.com/SMTP.Send offline_access",
+        ),
+    ],
+)
+def test_imap_oauth_scope_defaults_by_email_and_host(
+    email, host, expected_provider, expected_scope
+):
+    assert imap_oauth_scope(email, host) == (expected_provider, expected_scope)
+
+
+def test_imap_oauth_scope_honors_explicit_override():
+    scope = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access"
+    assert imap_oauth_scope("user@outlook.com", oauth_scope=scope) == (
+        "graph",
+        scope,
+    )
 
 
 class TestParseRedirect:

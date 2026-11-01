@@ -8,6 +8,7 @@ from mailhub.config import (
     initialize_config,
     load_config,
     parse_config,
+    save_config,
 )
 
 
@@ -37,6 +38,28 @@ def test_load_config_accepts_supported_provider_capabilities(tmp_path):
     assert config.account("personal").provider == "graph"
     assert config.account("personal").capabilities == frozenset(
         {"mail", "calendar", "tasks"}
+    )
+
+
+def test_imap_oauth_scope_is_loaded_and_saved(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text(
+        "[accounts.outlook]\n"
+        "provider = 'imap'\n"
+        "capabilities = ['mail']\n"
+        "email = 'user@outlook.com'\n"
+        "oauth_scope = 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access'\n"
+    )
+
+    config = load_config(path)
+    assert config.account("outlook").oauth_scope == (
+        "https://outlook.office.com/IMAP.AccessAsUser.All offline_access"
+    )
+
+    save_config(config, path)
+    assert (
+        'oauth_scope = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access"'
+        in path.read_text()
     )
 
 
