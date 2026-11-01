@@ -369,7 +369,7 @@ class TestConfigAtomicWrites:
         from mailhub.config import add_account, load_config
 
         cfg = load_config(config)
-        add_account(cfg, "new", "gmail", ["mail"], config)
+        add_account(cfg, "new", "gmail", ["mail"], path=config)
         config.chmod(0o600)
 
         assert config.stat().st_mode & 0o777 == 0o600
@@ -386,7 +386,7 @@ class TestConfigAtomicWrites:
         from mailhub.config import add_account, load_config
 
         cfg = load_config(config)
-        add_account(cfg, "new", "gmail", ["mail"], config)
+        add_account(cfg, "new", "gmail", ["mail"], path=config)
 
         content = config.read_text()
         assert "test_id" in content  # gmail section preserved
