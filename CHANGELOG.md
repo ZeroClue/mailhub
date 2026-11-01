@@ -1,4 +1,4 @@
-## [Unreleased]
+## [0.1.25] - 2026-11-01
 
 ### Fixed
 - **MCP draft/send recipients and IMAP drafts** — Normalize string recipients before Core dispatch, preventing header parse crashes; resolve the drafts folder by `drafts_folder`, detected special use, then `Drafts` fallback.
