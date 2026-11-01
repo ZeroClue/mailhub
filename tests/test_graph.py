@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mailhub.core import Core, RetryPolicy
+from mailhub.core import Core, CoreError, RetryPolicy
 from mailhub.graph import GraphAdapter
 
 
@@ -95,6 +95,94 @@ class TestGraphAdapter:
 
             assert len(result) == 3
             assert result[0]["name"] == "Inbox"
+
+    def test_folder_status(self, graph_adapter):
+        with patch.object(graph_adapter, "_request") as mock_request:
+            mock_request.return_value = MockResponse(
+                {
+                    "value": [
+                        {
+                            "displayName": "Inbox",
+                            "totalItemCount": 15,
+                            "unreadItemCount": 4,
+                        }
+                    ]
+                }
+            )
+            assert graph_adapter.folder_status("test_alias", "inbox") == {
+                "folder": "Inbox",
+                "messages": 15,
+                "unseen": 4,
+            }
+
+    def test_folder_statuses(self, graph_adapter):
+        with patch.object(graph_adapter, "_request") as mock_request:
+            mock_request.return_value = MockResponse(
+                {
+                    "value": [
+                        {
+                            "displayName": "Inbox",
+                            "totalItemCount": 15,
+                            "unreadItemCount": 4,
+                        }
+                    ]
+                }
+            )
+            assert graph_adapter.folder_statuses("test_alias") == [
+                {"folder": "Inbox", "messages": 15, "unseen": 4}
+            ]
+            assert mock_request.call_args.kwargs["params"]["$top"] == 1000
+
+    def test_folder_statuses_rejects_multiple_pages(self, graph_adapter):
+        with patch.object(graph_adapter, "_request") as mock_request:
+            mock_request.return_value = MockResponse(
+                {"value": [], "@odata.nextLink": "https://graph.example/next"}
+            )
+            with pytest.raises(CoreError, match="exceeds one Graph page"):
+                graph_adapter.folder_statuses("test_alias")
+
+    def test_get_special_use_folders(self, graph_adapter):
+        with patch.object(graph_adapter, "_request") as mock_request:
+            mock_request.return_value = MockResponse(
+                {
+                    "value": [
+                        {"displayName": "Inbox", "wellKnownName": "inbox"},
+                        {"displayName": "Sent Items", "wellKnownName": "sentItems"},
+                        {"displayName": "Drafts", "wellKnownName": "drafts"},
+                        {
+                            "displayName": "Deleted Items",
+                            "wellKnownName": "deletedItems",
+                        },
+                        {"displayName": "Junk Email", "wellKnownName": "junkEmail"},
+                        {"displayName": "Archive", "wellKnownName": "archive"},
+                    ]
+                }
+            )
+            assert graph_adapter.get_special_use_folders("test_alias") == {
+                "inbox": "Inbox",
+                "sent": "Sent Items",
+                "drafts": "Drafts",
+                "trash": "Deleted Items",
+                "junk": "Junk Email",
+                "archive": "Archive",
+            }
+
+    @pytest.mark.parametrize(
+        ("method_name", "args"),
+        [
+            ("folder_status", ("test_alias", "Inbox")),
+            ("folder_statuses", ("test_alias",)),
+            ("special_use_folders", ("test_alias",)),
+        ],
+    )
+    def test_core_missing_folder_method_raises_core_error(
+        self, mock_core, method_name, args
+    ):
+        mock_core._config = MagicMock()
+        mock_core._config.account.return_value.provider = "graph"
+        mock_core._get_adapter.return_value = object()
+        with pytest.raises(CoreError, match="provider 'graph' does not implement"):
+            getattr(Core, method_name)(mock_core, *args)
 
     def test_search(self, graph_adapter, mock_core):
         mock_response = MockResponse(

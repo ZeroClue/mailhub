@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mailhub.core import Core, RetryPolicy
+from mailhub.core import Core, CoreError, RetryPolicy
 from mailhub.gmail import GmailAdapter
 
 
@@ -89,6 +89,84 @@ class TestGmailAdapter:
             assert len(result) == 2
             assert result[0]["id"] == "INBOX"
             assert result[0]["name"] == "INBOX"
+
+    def test_folder_status(self, gmail_adapter):
+        with patch.object(gmail_adapter, "_request") as mock_request:
+            mock_request.return_value = MockResponse(
+                {
+                    "labels": [
+                        {
+                            "id": "INBOX",
+                            "name": "INBOX",
+                            "messagesTotal": 12,
+                            "messagesUnread": 3,
+                        }
+                    ]
+                }
+            )
+            assert gmail_adapter.folder_status("test_alias", "inbox") == {
+                "folder": "INBOX",
+                "messages": 12,
+                "unseen": 3,
+            }
+
+    def test_folder_statuses(self, gmail_adapter):
+        with patch.object(gmail_adapter, "_request") as mock_request:
+            mock_request.return_value = MockResponse(
+                {
+                    "labels": [
+                        {
+                            "id": "INBOX",
+                            "name": "INBOX",
+                            "messagesTotal": 12,
+                            "messagesUnread": 3,
+                        }
+                    ]
+                }
+            )
+            assert gmail_adapter.folder_statuses("test_alias") == [
+                {"folder": "INBOX", "messages": 12, "unseen": 3}
+            ]
+
+    def test_get_special_use_folders(self, gmail_adapter):
+        with patch.object(gmail_adapter, "_request") as mock_request:
+            mock_request.return_value = MockResponse(
+                {
+                    "labels": [
+                        {"id": "INBOX", "name": "INBOX"},
+                        {"id": "SENT", "name": "[Gmail]/Sent Mail"},
+                        {"id": "DRAFT", "name": "Drafts"},
+                        {"id": "TRASH", "name": "[Gmail]/Trash"},
+                        {"id": "SPAM", "name": "Spam"},
+                        {"id": "ALL_MAIL", "name": "[Gmail]/All Mail"},
+                    ]
+                }
+            )
+            assert gmail_adapter.get_special_use_folders("test_alias") == {
+                "inbox": "INBOX",
+                "sent": "[Gmail]/Sent Mail",
+                "drafts": "Drafts",
+                "trash": "[Gmail]/Trash",
+                "junk": "Spam",
+                "archive": "[Gmail]/All Mail",
+            }
+
+    @pytest.mark.parametrize(
+        ("method_name", "args"),
+        [
+            ("folder_status", ("test_alias", "INBOX")),
+            ("folder_statuses", ("test_alias",)),
+            ("special_use_folders", ("test_alias",)),
+        ],
+    )
+    def test_core_missing_folder_method_raises_core_error(
+        self, mock_core, method_name, args
+    ):
+        mock_core._config = MagicMock()
+        mock_core._config.account.return_value.provider = "gmail"
+        mock_core._get_adapter.return_value = object()
+        with pytest.raises(CoreError, match="provider 'gmail' does not implement"):
+            getattr(Core, method_name)(mock_core, *args)
 
     def test_search(self, gmail_adapter, mock_core):
         # Mock list messages response

@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from .core import Core
+from .core import Core, CoreError
 
 # Gmail API base URL
 GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -178,6 +178,63 @@ class GmailAdapter:
                 }
             )
         return labels
+
+    def folder_status(self, alias: str, folder_name: str) -> dict[str, object]:
+        """Get Gmail label counts; status keys are folder, messages, and unseen."""
+        labels = (
+            self._request("GET", f"{GMAIL_BASE}/labels", alias).json().get("labels", [])
+        )
+        target = folder_name.casefold()
+        for label in labels:
+            name = label.get("name", "")
+            if name.casefold() == target or label.get("id", "").casefold() == target:
+                return {
+                    "folder": name,
+                    "messages": label.get("messagesTotal", 0),
+                    "unseen": label.get("messagesUnread", 0),
+                }
+        raise CoreError(f"Folder not found: {folder_name}")
+
+    def folder_statuses(self, alias: str) -> list[dict[str, object]]:
+        """List Gmail label status with folder, messages, and unseen keys.
+
+        Gmail does not expose IMAP UIDNEXT or UIDVALIDITY equivalents.
+        """
+        labels = (
+            self._request("GET", f"{GMAIL_BASE}/labels", alias).json().get("labels", [])
+        )
+        return [
+            {
+                "folder": label.get("name", label.get("id", "")),
+                "messages": label.get("messagesTotal", 0),
+                "unseen": label.get("messagesUnread", 0),
+            }
+            for label in labels
+        ]
+
+    def get_special_use_folders(self, alias: str) -> dict[str, str]:
+        """Map Gmail system labels to IMAP-style special-use folder keys."""
+        labels = (
+            self._request("GET", f"{GMAIL_BASE}/labels", alias).json().get("labels", [])
+        )
+        candidates = {
+            "inbox": {"inbox"},
+            "sent": {"sent", "sent mail", "[gmail]/sent mail"},
+            "drafts": {"draft", "drafts", "[gmail]/drafts"},
+            "trash": {"trash", "[gmail]/trash"},
+            "junk": {"spam", "junk", "[gmail]/spam"},
+            "archive": {"all mail", "[gmail]/all mail", "archive", "archives"},
+        }
+        result = {}
+        for label in labels:
+            name = label.get("name", "")
+            label_id = label.get("id", "").casefold()
+            normalized_name = name.casefold()
+            for special_key, names in candidates.items():
+                if normalized_name in names or label_id in names:
+                    result[special_key] = name
+                    break
+        return result
 
     def search(
         self,

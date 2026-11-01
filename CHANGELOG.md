@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+- **Provider folder status** — Add Gmail and Microsoft Graph folder counts and special-folder mapping, with clear Core errors for unsupported adapters
+
 ## [0.1.22] - 2026-10-30
 
 ### Added

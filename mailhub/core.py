@@ -465,18 +465,32 @@ class Core:
 
     def folder_status(self, account: str, folder_name: str) -> dict[str, object]:
         """Get folder status (message counts, unseen, etc.)."""
-        adapter = self._get_adapter(self._config.account(account).provider)
-        return adapter.folder_status(account, folder_name)
+        provider = self._config.account(account).provider
+        adapter = self._get_adapter(provider)
+        method = getattr(adapter, "folder_status", None)
+        if not callable(method):
+            raise CoreError(f"provider '{provider}' does not implement folder_status")
+        return method(account, folder_name)
 
     def folder_statuses(self, account: str) -> list[dict[str, object]]:
         """Get status for all folders."""
-        adapter = self._get_adapter(self._config.account(account).provider)
-        return adapter.folder_statuses(account)
+        provider = self._config.account(account).provider
+        adapter = self._get_adapter(provider)
+        method = getattr(adapter, "folder_statuses", None)
+        if not callable(method):
+            raise CoreError(f"provider '{provider}' does not implement folder_statuses")
+        return method(account)
 
     def special_use_folders(self, account: str) -> dict[str, str]:
         """Detect special-use folders (Inbox, Sent, Drafts, Trash, Junk, Archive)."""
-        adapter = self._get_adapter(self._config.account(account).provider)
-        return adapter.get_special_use_folders(account)
+        provider = self._config.account(account).provider
+        adapter = self._get_adapter(provider)
+        method = getattr(adapter, "get_special_use_folders", None)
+        if not callable(method):
+            raise CoreError(
+                f"provider '{provider}' does not implement get_special_use_folders"
+            )
+        return method(account)
 
     def set_message_flags(
         self,

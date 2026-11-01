@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from .core import Core
+from .core import Core, CoreError
 from .util import build_mime
 
 # Graph API base URL
@@ -180,6 +180,68 @@ class GraphAdapter:
             )
         self._folders_cache[alias] = folders
         return folders
+
+    def folder_status(self, alias: str, folder_name: str) -> dict[str, object]:
+        """Get folder counts; status keys are folder, messages, and unseen."""
+        target = folder_name.casefold()
+        for status in self.folder_statuses(alias):
+            if str(status["folder"]).casefold() == target:
+                return status
+        raise CoreError(f"Folder not found: {folder_name}")
+
+    def folder_statuses(self, alias: str) -> list[dict[str, object]]:
+        """List first-level folder counts; Graph has no IMAP UID equivalents.
+
+        This reads one page (up to 1000 folders) and raises if Graph indicates
+        another page, so callers never receive a silently truncated listing.
+        """
+        response = self._request(
+            "GET",
+            f"{GRAPH_BASE}/mailFolders",
+            alias,
+            params={"$top": 1000, "$orderby": "displayName"},
+        )
+        data = response.json()
+        if data.get("@odata.nextLink"):
+            raise CoreError("Folder status listing exceeds one Graph page")
+        return [
+            {
+                "folder": folder.get("displayName", ""),
+                "messages": folder.get("totalItemCount", folder.get("totalCount", 0)),
+                "unseen": folder.get("unreadItemCount", 0),
+            }
+            for folder in data.get("value", [])
+        ]
+
+    def get_special_use_folders(self, alias: str) -> dict[str, str]:
+        """Map Graph well-known folder names to IMAP-style special-use keys."""
+        response = self._request(
+            "GET",
+            f"{GRAPH_BASE}/mailFolders",
+            alias,
+            params={
+                "$top": 1000,
+                "$select": "id,displayName,wellKnownName",
+            },
+        )
+        data = response.json()
+        if data.get("@odata.nextLink"):
+            raise CoreError("Special folder listing exceeds one Graph page")
+        special_keys = {
+            "inbox": "inbox",
+            "sentitems": "sent",
+            "drafts": "drafts",
+            "deleteditems": "trash",
+            "junkemail": "junk",
+            "archive": "archive",
+        }
+        result = {}
+        for folder in data.get("value", []):
+            well_known_name = folder.get("wellKnownName", "").casefold()
+            special_key = special_keys.get(well_known_name)
+            if special_key:
+                result[special_key] = folder.get("displayName", "")
+        return result
 
     def search(
         self,
