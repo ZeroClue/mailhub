@@ -27,6 +27,20 @@ def _xoauth2_base64(username: str, access_token: str) -> bytes:
     return base64.b64encode(_xoauth2_payload(username, access_token))
 
 
+def _parse_folder_list(folders: list[bytes]) -> list[dict[str, str]]:
+    """Parse names from the common IMAP LIST response forms."""
+    folder_pattern = re.compile(
+        r'\([^)]*\)\s+"([^"]+)"\s+"([^"]+)"$|\([^)]*\)\s+"([^"]+)"\s+(\S+)$'
+    )
+    result = []
+    for folder in folders:
+        match = folder_pattern.search(folder.decode("utf-8"))
+        if match:
+            name = match.group(2) if match.group(2) else match.group(4)
+            result.append({"name": name, "id": name})
+    return result
+
+
 @dataclass
 class IMAPConfig:
     """IMAP/SMTP connection configuration."""
@@ -80,6 +94,7 @@ class IMAPAdapter:
     def __init__(self, core: Any):
         self._core = core
         self._configs: dict[str, IMAPConfig] = {}
+        self._special_folders_cache: dict[str, dict[str, str]] = {}
 
     def _get_config(self, alias: str) -> IMAPConfig:
         """Get IMAP config for account - per-account config with global fallback."""
@@ -293,21 +308,7 @@ class IMAPAdapter:
             if status != "OK":
                 raise CoreError(f"Failed to list folders: {folders}")
 
-            # IMAP LIST response format: (flags) "delimiter" "name" or (flags) "delimiter" name
-            # name can be quoted or unquoted
-            folder_pattern = re.compile(
-                r'\([^)]*\)\s+"([^"]+)"\s+"([^"]+)"$|\([^)]*\)\s+"([^"]+)"\s+(\S+)$'
-            )
-
-            result = []
-            for folder in folders:
-                folder = folder.decode("utf-8")
-                match = folder_pattern.search(folder)
-                if match:
-                    # Group 2 is quoted name, group 4 is unquoted name
-                    name = match.group(2) if match.group(2) else match.group(4)
-                    result.append({"name": name, "id": name})
-            return result
+            return _parse_folder_list(folders)
         finally:
             try:
                 conn.logout()
@@ -357,77 +358,103 @@ class IMAPAdapter:
 
     def get_special_use_folders(self, alias: str) -> dict[str, str]:
         """Detect special-use folders (RFC 6154) like Inbox, Sent, Drafts, Trash, Junk, Archive."""
+        if alias in self._special_folders_cache:
+            return dict(self._special_folders_cache[alias])
         config = self._get_config(alias)
         config.timeout = 30
         conn = self._connect_imap(config, alias)
         try:
-            status, folders = conn.list()
-            if status != "OK":
-                return {}
-
-            # Try XLIST for Gmail-style special use
-            special_folders = {}
-            try:
-                status, xlist = conn.xlist("", "*")
-                if status == "OK":
-                    for item in xlist:
-                        decoded = item.decode("utf-8")
-                        # XLIST response: (\HasNoChildren \Sent) "/" "[Gmail]/Sent Mail"
-                        match = re.search(
-                            r'\\([^)]+)\)\s+"([^"]+)"\s+"([^"]+)"', decoded
-                        )
-                        if match:
-                            # Strip leading backslash from IMAP flags
-                            flags = [f.lstrip("\\") for f in match.group(1).split()]
-                            name = match.group(3)
-                            flag_map = {
-                                "Inbox": "inbox",
-                                "Sent": "sent",
-                                "Drafts": "drafts",
-                                "Trash": "trash",
-                                "Junk": "junk",
-                                "Archive": "archive",
-                            }
-                            for flag in flags:
-                                if flag in flag_map:
-                                    special_folders[flag_map[flag]] = name
-            except Exception:
-                # XLIST not supported or parsing failed, fall back to common names
-                pass
-
-            # Fallback: try common names
-            if not special_folders:
-                common_names = {
-                    "inbox": ["INBOX", "Inbox", "inbox"],
-                    "sent": [
-                        "Sent",
-                        "Sent Items",
-                        "Sent Messages",
-                        "[Gmail]/Sent Mail",
-                    ],
-                    "drafts": ["Drafts", "Draft", "[Gmail]/Drafts"],
-                    "trash": [
-                        "Trash",
-                        "Deleted Items",
-                        "Deleted Messages",
-                        "[Gmail]/Trash",
-                    ],
-                    "junk": ["Junk", "Spam", "Junk E-mail", "[Gmail]/Spam"],
-                    "archive": ["Archive", "Archives", "[Gmail]/All Mail"],
-                }
-                folder_names = [f["name"] for f in self.folders(alias)]
-                for key, candidates in common_names.items():
-                    for candidate in candidates:
-                        if candidate in folder_names:
-                            special_folders[key] = candidate
-                            break
-
-            return special_folders
+            return self._special_use_folders_for_connection(alias, conn)
         finally:
             try:
                 conn.logout()
             except Exception:
                 pass
+
+    def _special_use_folders_for_connection(
+        self, alias: str, conn: imaplib.IMAP4_SSL | imaplib.IMAP4
+    ) -> dict[str, str]:
+        """Detect special folders on an existing connection and memoize them."""
+        if alias in self._special_folders_cache:
+            return dict(self._special_folders_cache[alias])
+
+        status, folders = conn.list()
+        if status != "OK":
+            return {}
+
+        special_folders = {}
+        try:
+            status, xlist = conn.xlist("", "*")
+            if status == "OK":
+                for item in xlist:
+                    decoded = item.decode("utf-8")
+                    # XLIST response: (\HasNoChildren \Sent) "/" "[Gmail]/Sent Mail"
+                    match = re.search(r'\\([^)]+)\)\s+"([^"]+)"\s+"([^"]+)"', decoded)
+                    if match:
+                        flags = [f.lstrip("\\") for f in match.group(1).split()]
+                        name = match.group(3)
+                        flag_map = {
+                            "Inbox": "inbox",
+                            "Sent": "sent",
+                            "Drafts": "drafts",
+                            "Trash": "trash",
+                            "Junk": "junk",
+                            "Archive": "archive",
+                        }
+                        for flag in flags:
+                            if flag in flag_map:
+                                special_folders[flag_map[flag]] = name
+        except Exception:
+            # XLIST is optional; use common names from the LIST response.
+            pass
+
+        list_flag_map = {
+            "inbox": "inbox",
+            "sent": "sent",
+            "drafts": "drafts",
+            "trash": "trash",
+            "junk": "junk",
+            "spam": "junk",
+            "archive": "archive",
+            "all": "archive",
+        }
+        list_pattern = re.compile(
+            r'\((?P<flags>[^)]*)\)\s+"[^"]+"\s+(?:"(?P<quoted>[^"]+)"|(?P<bare>\S+))$'
+        )
+        for item in folders:
+            match = list_pattern.search(item.decode("utf-8"))
+            if not match:
+                continue
+            name = match.group("quoted") or match.group("bare")
+            for flag in match.group("flags").split():
+                special_key = list_flag_map.get(flag.lstrip("\\").casefold())
+                if special_key and special_key not in special_folders:
+                    special_folders[special_key] = name
+
+        common_names = {
+            "inbox": ["INBOX", "Inbox", "inbox"],
+            "sent": ["Sent", "Sent Items", "Sent Messages", "[Gmail]/Sent Mail"],
+            "drafts": ["Drafts", "Draft", "[Gmail]/Drafts"],
+            "trash": [
+                "Trash",
+                "Deleted Items",
+                "Deleted Messages",
+                "[Gmail]/Trash",
+            ],
+            "junk": ["Junk", "Spam", "Junk E-mail", "[Gmail]/Spam"],
+            "archive": ["Archive", "Archives", "[Gmail]/All Mail"],
+        }
+        folder_names = [folder["name"] for folder in _parse_folder_list(folders)]
+        for key, candidates in common_names.items():
+            if key in special_folders:
+                continue
+            for candidate in candidates:
+                if candidate in folder_names:
+                    special_folders[key] = candidate
+                    break
+
+        self._special_folders_cache[alias] = dict(special_folders)
+        return special_folders
 
     def set_message_flags(
         self,
@@ -874,7 +901,7 @@ class IMAPAdapter:
         references: list[str],
         attachments: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        """Create draft - save to Drafts folder via IMAP with optional attachments."""
+        """Create a draft in the configured or detected drafts folder."""
         config = self._get_config(alias)
 
         msg = EmailMessage()
@@ -927,9 +954,21 @@ class IMAPAdapter:
 
         conn = self._connect_imap(config, alias)
         try:
-            conn.select("Drafts", readonly=False)
+            account = self._core._config.account(alias)
+            drafts_folder = account.drafts_folder
+            if not isinstance(drafts_folder, str) or not drafts_folder:
+                raw_account = self._core._config._raw.get("accounts", {}).get(alias, {})
+                drafts_folder = raw_account.get("drafts_folder", "")
+            if not drafts_folder:
+                drafts_folder = self._special_use_folders_for_connection(
+                    alias, conn
+                ).get("drafts", "Drafts")
+
+            conn.select(drafts_folder, readonly=False)
             msg_bytes = msg.as_bytes()
-            conn.append("Drafts", "", imaplib.Time2Internaldate(time.time()), msg_bytes)
+            conn.append(
+                drafts_folder, "", imaplib.Time2Internaldate(time.time()), msg_bytes
+            )
             return {"id": "draft", "status": "draft"}
         finally:
             try:
@@ -1027,6 +1066,7 @@ class IMAPAdapter:
     def close(self) -> None:
         """Close any open connections."""
         self._configs.clear()
+        self._special_folders_cache.clear()
 
 
 def create_imap_adapter(core: Any) -> IMAPAdapter:

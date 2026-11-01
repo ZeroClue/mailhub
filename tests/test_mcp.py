@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from unittest.mock import MagicMock
 
 from mailhub.core import Core
 from mailhub import mcp
@@ -63,4 +64,61 @@ def test_folder_status_without_folder_uses_provider_statuses(tmp_path, monkeypat
 
     assert mcp.mailhub_folder_status("personal", folder=None) == [
         {"folder": "INBOX", "messages": 8, "unseen": 2}
+    ]
+
+
+def test_mailhub_draft_normalizes_string_recipients(monkeypatch):
+    core = MagicMock()
+    monkeypatch.setattr(mcp, "get_core", lambda: core)
+
+    mcp.mailhub_draft(
+        "personal",
+        "one@example.com, , two@example.com ",
+        "subject",
+        cc=" copy@example.com ",
+        bcc="",
+    )
+
+    core.draft.assert_called_once_with(
+        "personal",
+        to=["one@example.com", "two@example.com"],
+        cc=["copy@example.com"],
+        bcc=[],
+        subject="subject",
+        text_body=None,
+        html_body=None,
+        in_reply_to=None,
+        references=[],
+        attachments=[],
+    )
+
+
+def test_mailhub_draft_preserves_list_recipients(monkeypatch):
+    core = MagicMock()
+    monkeypatch.setattr(mcp, "get_core", lambda: core)
+
+    mcp.mailhub_draft("personal", [" one@example.com ", "two@example.com"], "subject")
+
+    assert core.draft.call_args.kwargs["to"] == [
+        "one@example.com",
+        "two@example.com",
+    ]
+
+
+def test_mailhub_send_normalizes_string_cc(monkeypatch):
+    core = MagicMock()
+    monkeypatch.setattr(mcp, "get_core", lambda: core)
+
+    mcp.mailhub_send(
+        "personal",
+        "to@example.com",
+        "subject",
+        cc=" cc1@example.com, , cc2@example.com ",
+        confirm=True,
+    )
+
+    assert core.send.call_args.kwargs["to"] == ["to@example.com"]
+    assert core.send.call_args.kwargs["cc"] == [
+        "cc1@example.com",
+        "cc2@example.com",
     ]

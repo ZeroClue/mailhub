@@ -180,6 +180,8 @@ imap_username = "user@outlook.com"
 smtp_host = "smtp-mail.outlook.com"
 smtp_port = 587
 auth_method = "oauth2"
+# Optional when automatic special-folder detection cannot identify it:
+# drafts_folder = "[Gmail]/Drafts"
 # Optional scope override. Default is IMAP.AccessAsUser.All + SMTP.Send + offline_access.
 # oauth_scope = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access"
 # Gmail IMAP uses https://mail.google.com/; this may also be set explicitly.

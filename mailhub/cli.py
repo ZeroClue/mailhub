@@ -610,6 +610,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                                 smtp_use_starttls=smtp_use_starttls,
                                 auth_method=auth_method,
                                 oauth_scope=acc.oauth_scope,
+                                drafts_folder=acc.drafts_folder,
                             )
                         )
                     else:

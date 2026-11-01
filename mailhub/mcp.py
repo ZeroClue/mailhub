@@ -50,6 +50,21 @@ def get_core():
     return c
 
 
+def _normalize_recipients(recipients):
+    """Normalize a recipient string or sequence to clean address strings."""
+    if recipients is None:
+        return []
+    if isinstance(recipients, str):
+        recipients = recipients.split(",")
+    if not isinstance(recipients, (list, tuple)):
+        return []
+    return [
+        recipient.strip()
+        for recipient in recipients
+        if isinstance(recipient, str) and recipient.strip()
+    ]
+
+
 # Tool functions defined at module level to avoid closure issues
 def mailhub_status():
     """Return non-secret account configuration; never contact a provider."""
@@ -89,9 +104,9 @@ def mailhub_send(
         raise SendDenied("send requires confirm=true")
     return c.send(
         account,
-        to=to,
-        cc=cc or [],
-        bcc=bcc or [],
+        to=_normalize_recipients(to),
+        cc=_normalize_recipients(cc),
+        bcc=_normalize_recipients(bcc),
         subject=subject,
         text_body=text_body,
         html_body=html_body,
@@ -117,9 +132,9 @@ def mailhub_draft(
     c = get_core()
     return c.draft(
         account,
-        to=to,
-        cc=cc or [],
-        bcc=bcc or [],
+        to=_normalize_recipients(to),
+        cc=_normalize_recipients(cc),
+        bcc=_normalize_recipients(bcc),
         subject=subject,
         text_body=text_body,
         html_body=html_body,
@@ -558,23 +573,18 @@ def create_server(*, mode="ro", config_file=None):
             confirm=False,
             attachments=None,
         ):
-            c = get_core()
-            if not confirm:
-                from .core import SendDenied
-
-                raise SendDenied("send requires confirm=true")
-            return c.send(
+            return mailhub_send(
                 account,
-                to=to,
-                cc=cc or [],
-                bcc=bcc or [],
+                to,
                 subject=subject,
+                cc=cc,
+                bcc=bcc,
                 text_body=text_body,
                 html_body=html_body,
                 in_reply_to=in_reply_to,
-                references=references or [],
-                confirm=True,
-                attachments=attachments or [],
+                references=references,
+                confirm=confirm,
+                attachments=attachments,
             )
 
         @server.tool(name="mailhub_draft", description="Create a draft message.")
@@ -590,18 +600,17 @@ def create_server(*, mode="ro", config_file=None):
             references=None,
             attachments=None,
         ):
-            c = get_core()
-            return c.draft(
+            return mailhub_draft(
                 account,
-                to=to,
-                cc=cc or [],
-                bcc=bcc or [],
+                to,
                 subject=subject,
+                cc=cc,
+                bcc=bcc,
                 text_body=text_body,
                 html_body=html_body,
                 in_reply_to=in_reply_to,
-                references=references or [],
-                attachments=attachments or [],
+                references=references,
+                attachments=attachments,
             )
 
         @server.tool(

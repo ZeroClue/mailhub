@@ -427,23 +427,77 @@ def test_special_use_folders_detects_xlist(adapter, mock_imap):
     assert result["junk"] == "[Gmail]/Spam"
 
 
+def test_special_use_folders_detects_rfc6154_list_flags(adapter, mock_imap):
+    mock_imap.list.return_value = (
+        "OK",
+        [
+            b'(\\HasNoChildren \\Drafts) "." "INBOX.Drafts"',
+            b'(\\HasNoChildren \\Sent) "." "INBOX.Sent"',
+        ],
+    )
+
+    result = adapter.get_special_use_folders("test_account")
+
+    assert result["drafts"] == "INBOX.Drafts"
+    assert result["sent"] == "INBOX.Sent"
+
+
 def test_special_use_folders_fallback_to_common_names(adapter, mock_imap):
     """Test get_special_use_folders() falls back to common names when XLIST fails."""
-    from unittest.mock import patch
-
-    with patch.object(
-        adapter,
-        "folders",
-        return_value=[
-            {"name": "INBOX", "id": "INBOX"},
-            {"name": "Sent Items", "id": "Sent Items"},
-            {"name": "Deleted Items", "id": "Deleted Items"},
-            {"name": "Junk E-mail", "id": "Junk E-mail"},
-        ],
-    ):
+    with patch.object(adapter, "_connect_imap", wraps=adapter._connect_imap) as connect:
         result = adapter.get_special_use_folders("test_account")
 
     assert result["inbox"] == "INBOX"
-    assert result["sent"] == "Sent Items"
-    assert result["trash"] == "Deleted Items"
-    assert result["junk"] == "Junk E-mail"
+    assert result["sent"] == "Sent"
+    assert result["drafts"] == "Drafts"
+    assert result["archive"] == "Archive"
+    connect.assert_called_once()
+
+
+def test_draft_appends_to_detected_gmail_drafts_folder(adapter, mock_imap):
+    mock_imap.xlist.return_value = (
+        "OK",
+        [b'(\\HasNoChildren \\Drafts) "/" "[Gmail]/Drafts"'],
+    )
+    with patch.object(adapter, "_connect_imap", wraps=adapter._connect_imap) as connect:
+        result = adapter.draft(
+            "test_account",
+            ["to@example.com"],
+            [],
+            [],
+            "subject",
+            "body",
+            None,
+            None,
+            [],
+        )
+
+    assert result["status"] == "draft"
+    mock_imap.select.assert_called_once_with("[Gmail]/Drafts", readonly=False)
+    assert mock_imap.append.call_args.args[0] == "[Gmail]/Drafts"
+    assert adapter.get_special_use_folders("test_account")["drafts"] == "[Gmail]/Drafts"
+    connect.assert_called_once()
+
+
+def test_draft_configured_folder_overrides_detection(adapter, mock_core, mock_imap):
+    mock_core._config._accounts["test_account"].drafts_folder = "INBOX.Drafts"
+    mock_core._config._raw["accounts"]["test_account"]["drafts_folder"] = "INBOX.Drafts"
+
+    adapter.draft(
+        "test_account", ["to@example.com"], [], [], "subject", "body", None, None, []
+    )
+
+    mock_imap.list.assert_not_called()
+    mock_imap.select.assert_called_once_with("INBOX.Drafts", readonly=False)
+    assert mock_imap.append.call_args.args[0] == "INBOX.Drafts"
+
+
+def test_draft_falls_back_to_drafts_when_no_folder_is_detected(adapter, mock_imap):
+    mock_imap.list.return_value = ("OK", [])
+
+    adapter.draft(
+        "test_account", ["to@example.com"], [], [], "subject", "body", None, None, []
+    )
+
+    mock_imap.select.assert_called_once_with("Drafts", readonly=False)
+    assert mock_imap.append.call_args.args[0] == "Drafts"

@@ -63,6 +63,22 @@ def test_imap_oauth_scope_is_loaded_and_saved(tmp_path):
     )
 
 
+def test_account_drafts_folder_is_loaded_and_saved(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text(
+        "[accounts.personal]\n"
+        "provider = 'imap'\n"
+        "capabilities = ['mail']\n"
+        "drafts_folder = 'INBOX.Drafts'\n"
+    )
+
+    config = load_config(path)
+    assert config.account("personal").drafts_folder == "INBOX.Drafts"
+
+    save_config(config, path)
+    assert 'drafts_folder = "INBOX.Drafts"' in path.read_text()
+
+
 def test_config_rejects_unsupported_provider_capability():
     with pytest.raises(ConfigError, match="does not support: tasks"):
         parse_config(

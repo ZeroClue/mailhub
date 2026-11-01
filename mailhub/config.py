@@ -43,6 +43,7 @@ class Account:
     smtp_use_starttls: bool = True
     auth_method: str = "plain"
     oauth_scope: str = ""
+    drafts_folder: str = ""
 
 
 @dataclass(frozen=True)
@@ -138,6 +139,9 @@ def parse_config(data: dict[str, Any]) -> Config:
         oauth_scope = raw_account.get("oauth_scope", "")
         if not isinstance(oauth_scope, str):
             raise ConfigError(f"account {alias}.oauth_scope must be a string")
+        drafts_folder = raw_account.get("drafts_folder", "")
+        if not isinstance(drafts_folder, str):
+            raise ConfigError(f"account {alias}.drafts_folder must be a string")
         provider = _require_string(
             raw_account.get("provider"), f"account {alias}.provider"
         )
@@ -174,6 +178,7 @@ def parse_config(data: dict[str, Any]) -> Config:
                 smtp_use_starttls=raw_account.get("smtp_use_starttls", True),
                 auth_method=raw_account.get("auth_method", "plain"),
                 oauth_scope=oauth_scope,
+                drafts_folder=drafts_folder,
             )
         )
 
@@ -239,6 +244,7 @@ CONFIG_TEMPLATE = """# Mailhub account registry.
 # smtp_use_starttls = true
 # auth_method = "plain"  # plain, app_password, oauth2
 # oauth_scope = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access"  # override defaults; Microsoft IMAP permission is read/write
+# drafts_folder = "INBOX.Drafts"  # optional override for the account's drafts folder
 #
 # Shared OAuth credentials (used as fallback for accounts without per-account credentials):
 # [gmail]
@@ -330,6 +336,8 @@ def _serialize_account(account: Account) -> dict[str, Any]:
         data["auth_method"] = account.auth_method
     if account.oauth_scope:
         data["oauth_scope"] = account.oauth_scope
+    if account.drafts_folder:
+        data["drafts_folder"] = account.drafts_folder
     return data
 
 
