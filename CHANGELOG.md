@@ -1,4 +1,4 @@
-## [Unreleased]
+## [0.1.24] - 2026-11-01
 
 ### Added
 - **OAuth2 (XOAUTH2) IMAP and SMTP support for imap-provider accounts** — Use provider-specific IMAP scopes with token refresh through Core.
